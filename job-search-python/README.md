@@ -21,6 +21,9 @@ pip install -r requirements.txt
 python job-search
 ```
 
+At startup, the app prints one log line with the effective runtime parameters, including
+which URL source is being used (`--url` or `--urls`) and all active file/threshold settings.
+
 The script defaults to:
 
 - `settings/urls.txt`
@@ -29,6 +32,7 @@ The script defaults to:
 - `settings/exclusions.txt`
 - `settings/programminglanguages.txt`
 - `settings/tools.txt`
+- `--url` not set (uses `--urls` file)
 - `--match-pct 75`
 - `--max-jobs-per-url 0` (no limit)
 
@@ -46,11 +50,18 @@ python job-search \
   --max-jobs-per-url 25
 ```
 
+Process only one URL (and ignore `--urls` file input):
+
+```bash
+python job-search --url "https://remotive.com/remote-jobs/software-dev"
+```
+
 ### Arguments
 
 | Argument | Description |
 |----------|-------------|
 | `--urls` | Path to a file containing one search URL per line. Defaults to `settings/urls.txt` |
+| `--url` | Single search URL to process. When provided, this overrides `--urls` and only this URL is used. |
 | `--attributes` | Path to a file listing the attributes to extract (e.g. `Job Title`, `Programming Language`, `Tools`, `Salary Range`). Defaults to `settings/attributes.txt` |
 | `--targets` | Path to a file listing target attribute values (e.g. `Job Title=Solutions Architect`). Defaults to `settings/targets.txt` |
 | `--exclusions` | Path to a file listing exclusion rules. Defaults to `settings/exclusions.txt` |
@@ -154,8 +165,20 @@ Each run produces:
 `report.json` also includes:
 - `exclusion_warnings` — ignored exclusion lines and reasons
 - Per-job `excluded` and `exclusion_details`
+- `parameters` — all CLI parameters with description, value, and whether each was explicitly supplied
+- `effective_parameters` — resolved runtime settings actually used by the run
 
 After the files are written, the script opens `report.html` in your browser.
+
+`report.html` includes:
+- Top summary bar (URLs, jobs, recommended)
+- Recommended follow-up section
+- URL-by-URL job details
+- Run Parameters section (at the bottom)
+- Run Summary section (at the bottom) with:
+  - Number of URLs checked
+  - Number of jobs checked
+  - Match-score distribution (count of jobs for each score found)
 
 ### Exclusion Behavior
 

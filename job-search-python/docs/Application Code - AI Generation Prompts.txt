@@ -57,4 +57,25 @@ Update the Job Search script as follows:
 3. Update the rest of the script logic to apply that new parameter to each URL read.
 4. Update the documentation files to describe this new functionality and how it would be used.
 
+C.
+---------------------
+Update this script as follows:
+1. Accept a parameter to specify a single URL to use in extracting job information.
+2. If this parameter is present, use it instead of the URLs text file as a source for job information.
+3. Update the documentation to describe the new parameter and how it would be used.
+
+Add a startup log line that prints all parameters being used so it is visible in console output.
+Update the report to include a description of all parameters that were supplied to the application.
+
+Update the report to move the 'Run Parameters' section to the bottom of the report.
+
+Update the report to include a summary section at the bottom of the report.
+This summary section should include the following:
+- The number of URLs checked.
+- The number of jobs checked.
+- The number of jobs that match each match score found.
+Update the docs to include all the recent changes.
+
+D.
+---------------------
 

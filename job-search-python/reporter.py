@@ -14,12 +14,24 @@ def generate_report(
     match_pct: int,
     timestamp: str,
     report_dir: Path,
+    run_parameters: list[dict] | None = None,
+    effective_parameters: dict | None = None,
     exclusion_warnings: list[str] | None = None,
 ) -> Path:
     env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)), autoescape=True)
     template = env.get_template("report.html.j2")
 
     total_jobs = sum(len(r.get("jobs", [])) for r in results)
+    score_counts: dict[int, int] = {}
+    for result in results:
+        for job in result.get("jobs", []):
+            score = int(job.get("match_score", 0))
+            score_counts[score] = score_counts.get(score, 0) + 1
+
+    score_distribution = [
+        {"score": score, "count": count}
+        for score, count in sorted(score_counts.items(), key=lambda item: item[0], reverse=True)
+    ]
     recommended = sum(
         1 for r in results for j in r.get("jobs", []) if j.get("recommended")
     )
@@ -44,8 +56,13 @@ def generate_report(
         match_pct=match_pct,
         results=results,
         total_jobs=total_jobs,
+        urls_checked=len(results),
+        jobs_checked=total_jobs,
+        score_distribution=score_distribution,
         recommended=recommended,
         recommended_jobs=recommended_jobs,
+        run_parameters=run_parameters or [],
+        effective_parameters=effective_parameters or {},
         exclusion_warnings=exclusion_warnings or [],
     )
 

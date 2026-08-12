@@ -61,6 +61,78 @@
     margin-bottom: .5rem;
   }
   .warning-list { margin-left: 1rem; color: #7c2d12; font-size: .9rem; }
+  .params-summary {
+    margin-bottom: 2rem;
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: .75rem;
+    padding: 1rem 1.25rem;
+  }
+  .params-title {
+    color: #1e3a8a;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .6rem;
+  }
+  .params-meta {
+    color: #1e40af;
+    font-size: .88rem;
+    margin-bottom: .75rem;
+  }
+  .params-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .86rem;
+    background: #ffffff;
+    border: 1px solid #bfdbfe;
+    border-radius: .5rem;
+    overflow: hidden;
+  }
+  .params-table th, .params-table td {
+    padding: .45rem .6rem;
+    text-align: left;
+    border-bottom: 1px solid #dbeafe;
+    vertical-align: top;
+  }
+  .params-table th { background: #dbeafe; color: #1e3a8a; font-weight: 600; }
+  .params-supplied { color: #166534; font-weight: 600; }
+  .params-default { color: #475569; }
+  .params-value { word-break: break-all; }
+  .bottom-summary {
+    margin-bottom: 2rem;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: .75rem;
+    padding: 1rem 1.25rem;
+  }
+  .bottom-summary-title {
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .6rem;
+  }
+  .bottom-summary-grid {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: .8rem;
+    font-size: .9rem;
+  }
+  .bottom-summary-grid span { font-weight: 700; }
+  .score-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .86rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: .5rem;
+    overflow: hidden;
+  }
+  .score-summary-table th, .score-summary-table td {
+    padding: .45rem .6rem;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .score-summary-table th { background: #f1f5f9; font-weight: 600; }
   .excluded-badge {
     display: inline-block; background: #ef4444; color: #fff;
     font-size: .75rem; font-weight: 600; padding: .15rem .5rem;
@@ -253,6 +325,61 @@
   {% endif %}
 </div>
 {% endfor %}
+
+{% if run_parameters %}
+<section class="params-summary">
+  <div class="params-title">Run Parameters</div>
+  <div class="params-meta">
+    Effective URL source: {{ effective_parameters.get('url_source', 'n/a') }}
+    &nbsp;·&nbsp;
+    Effective URLs processed: {{ effective_parameters.get('urls_count', 0) }}
+  </div>
+  <table class="params-table">
+    <thead>
+      <tr><th>Parameter</th><th>Supplied</th><th>Value</th><th>Description</th></tr>
+    </thead>
+    <tbody>
+      {% for item in run_parameters %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td class="{{ 'params-supplied' if item.supplied else 'params-default' }}">
+          {{ 'Yes' if item.supplied else 'No' }}
+        </td>
+        <td class="params-value">{{ item.value if item.value != '' else '—' }}</td>
+        <td>{{ item.description }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="bottom-summary">
+  <div class="bottom-summary-title">Run Summary</div>
+  <div class="bottom-summary-grid">
+    <div>URLs checked: <span>{{ urls_checked }}</span></div>
+    <div>Jobs checked: <span>{{ jobs_checked }}</span></div>
+  </div>
+  <table class="score-summary-table">
+    <thead>
+      <tr><th>Match Score</th><th>Jobs</th></tr>
+    </thead>
+    <tbody>
+      {% if score_distribution %}
+        {% for item in score_distribution %}
+        <tr>
+          <td>{{ item.score }}%</td>
+          <td>{{ item.count }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="2">No scored jobs found.</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
 
 </body>
 </html>

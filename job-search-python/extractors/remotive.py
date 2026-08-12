@@ -29,6 +29,14 @@ class RemotiveExtractor(BaseExtractor):
     HEADLESS = True
 
     @staticmethod
+    def _extract_joburl_from_xdata(x_data: str | None) -> str:
+        """Extract joburl from an Alpine.js x-data blob, if present."""
+        if not x_data:
+            return ""
+        match = re.search(r"joburl\s*:\s*['\"]([^'\"]+)['\"]", x_data)
+        return match.group(1).strip() if match else ""
+
+    @staticmethod
     def _metadata_text(*parts: object) -> str:
         """Join optional metadata parts into one extraction text blob."""
         text_parts: list[str] = []
@@ -86,17 +94,24 @@ class RemotiveExtractor(BaseExtractor):
         )
         if not match:
             soup = BeautifulSoup(resp.text, "lxml")
-            cards = soup.select("li.job-list-item, li[class*='job']")
+            hits_container = soup.select_one("div.hits")
+            if not hits_container:
+                return [], False
+
+            cards = hits_container.select("li.job-list-item, li[class*='job']")
             print(f"  [Remotive] Found {len(cards)} job cards (static-html)")
             if not cards:
                 return [], False
 
             for card in cards:
-                link_el = card.select_one("a[href]")
-                if not link_el:
-                    continue
-                job_path = link_el.get("href", "")
-                job_url = urljoin(BASE_URL, job_path)
+                # Primary source: card x-data joburl; fallback: first anchor href.
+                job_url = self._extract_joburl_from_xdata(card.get("x-data"))
+                if not job_url:
+                    link_el = card.select_one("a[href]")
+                    if not link_el:
+                        continue
+                    job_path = link_el.get("href", "")
+                    job_url = urljoin(BASE_URL, job_path)
 
                 try:
                     job_resp = requests.get(job_url, headers=HEADERS, timeout=20)
@@ -139,7 +154,8 @@ class RemotiveExtractor(BaseExtractor):
             return [], False
 
         for hit in hits:
-            job_url = hit.get("url", "")
+            # Embedded payload can point off-site; prefer source-site link when available.
+            job_url = hit.get("joburl", "") or hit.get("url", "")
             if not job_url:
                 continue
 
@@ -203,12 +219,19 @@ class RemotiveExtractor(BaseExtractor):
         self.sleep(4)
 
         jobs: list[dict[str, Any]] = []
-        cards = driver.find_elements(By.CSS_SELECTOR, "li.job-list-item, li[class*='job']")
+        cards = driver.find_elements(By.CSS_SELECTOR, "div.hits li.job-list-item, div.hits li[class*='job']")
         print(f"  [Remotive/Selenium] Found {len(cards)} job cards")
 
         job_urls = []
         for card in cards:
             try:
+                # Primary source: card x-data joburl; fallback: anchor href.
+                x_data = card.get_attribute("x-data")
+                x_data_url = self._extract_joburl_from_xdata(x_data)
+                if x_data_url:
+                    job_urls.append(x_data_url)
+                    continue
+
                 link = card.find_element(By.CSS_SELECTOR, "a")
                 href = link.get_attribute("href") or ""
                 if href:
