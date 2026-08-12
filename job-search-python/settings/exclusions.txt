@@ -1,0 +1,6 @@
+# Exclusion rules — one per line.
+# Supported formats:
+#   AttributeName=Value           (exact match, case-insensitive)
+#   AttributeName=Value OR Value  (any listed value may match)
+
+Job Title=Full Stack

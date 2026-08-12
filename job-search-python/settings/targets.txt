@@ -1,0 +1,11 @@
+# Target attribute rules — one per line.
+# Supported formats:
+#   AttributeName=Value           (exact match, case-insensitive)
+#   AttributeName=Value OR Value  (any listed value may match)
+#   Salary Range Includes <amount> (salary range must span this amount)
+#
+# Salary amounts can be written as: 200000, 200K, $200K, $200,000
+
+Job Title=Solutions Architect OR Software Engineering Manager OR Software Engineer
+Programming Language=C# OR .NET
+Salary Range Includes 200K

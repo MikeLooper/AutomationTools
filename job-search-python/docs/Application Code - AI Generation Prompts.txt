@@ -1,0 +1,60 @@
+Prompts used in generating or modifying code for this script:
+--------------------------------------------------------------
+
+A.
+---------------------
+Create an Agent, with any appropriate skills or related files that may be needed, that will examine specified job search sites and read job opportunities offered to find matches to a set of specified attributes.
+Each search URL will open a website, which will display multiple job descriptions.
+Each different job site may require different handling to extract the expected attributes.
+It may be necessary to interact with the website to cause each job description to display.  For example: many of these sites have a list of jobs on the left side that must be clicked in order for the job description to display on the right side.
+
+1. Here are example URLs that should be examined to determine how to gather data at each hosting site:
+- https://www.dice.com/jobs?filters.postedDate=THREE&filters.employmentType=FULLTIME&filters.workplaceTypes=Remote%7COn-Site%7CHybrid&radius=30&location=Lone+Tree%2C+CO%2C+USA&q=Solutions+Architect&latitude=39.5362858&longitude=-104.8855322&countryCode=US&locationPrecision=City&adminDistrictCode=CO
+- https://www.glassdoor.com/Job/lone-tree-solutions-architect-jobs-SRCH_IL.0,9_IC1164306_KO10,29.htm?fromAge=3&maxSalary=300000&minSalary=200000
+- https://my.greenhouse.io/jobs?query=Solutions%20Architect&location=Lone%20Tree%2C%20Colorado%2C%20United%20States&lat=39.522307&lon=-104.867045&location_type=locality&country_short_name=US&state_short_name=CO&date_posted=past_five_days&salary=more_than_200k&employment_type[]=full_time
+- https://www.linkedin.com/jobs/search/?currentJobId=4422024997&distance=25&f_JT=F&f_SB2=9&f_TPR=r86400&f_WT=1%2C2%2C3&geoId=106194045&keywords=solutions%20architect&origin=JOB_SEARCH_PAGE_JOB_FILTER
+- https://remotive.com/remote-jobs?query=Solutions+Architect&location=USA&employment-type=full-time&min_salary=200000
+
+2. Here are the search attributes that should be discovered for each job description at each website:
+- Job Title (examples: "Solutions Architect", "Software Engineering Manager", "Software Engineer")
+- Progamming Language (examples: .NET, C#, Java, Python)
+- Salary Range (examples: $100,000 - $200,000, 100K - 200K)
+
+3. Store this agent, and any related files, in this directory: `C:\Working\Storage\Dev\GitHub\AIAssistants\job-search`.
+
+4. The agent will accept/expect the following information:
+	A. The path to a local file that contains a list of search URLs.
+	B. The path to a local file that contains a list of search attributes.
+	C. The path to a local file that contains a list of target attribute values.
+		- Example: "Job Title='Solutions Architect'", "Salary Range Includes 200K"
+		- 'Includes' in a Salary Range would mean that the discovered range would have a minimum that is equal or greater than the specified value and a maximum that is equal to or less than the specified value.
+	D. The 'Match percentage' which will be used in reporting.  (example: 75)
+
+5. The agent will accomplish the following actions:
+	A. Read the list of search URLs.
+	B. For each URL:
+		- Open the website.
+		- Read each job description, along with the URL to the specific job description.
+		- Extract the specified search attributes from each job description.
+	C. Create a report that lists the following:
+		- Each search URL.
+		- The job descriptions.
+		- For each job description:
+			- The URL to the specific job description.
+			- The search attributes discovered.
+			- A percentage of how well the discovered search attributes matches the target attribute values.
+			- If the percentage is greater than the 'Match percentage', mark this job description as recommended for follow-up.
+
+6. The agent's report will be written to the `C:\Working\Storage\Dev\GitHub\AIAssistants\job-search` directory, under a sub-directory named for the current date and time.  The name of the sub-directory will be in the format `YYYY-MM-DD HH-MM`.
+
+If some other AI tool, or AI model, could do this job better (or execute the agent better) list the tool or model and how it could be used.
+
+B.
+---------------------
+Update the Job Search script as follows:
+1. Change the name of the Python script file to: job-search.
+2. Update the script to allow a parameter to be passed-in that would limit the number of jobs that would be read from a single URL.
+3. Update the rest of the script logic to apply that new parameter to each URL read.
+4. Update the documentation files to describe this new functionality and how it would be used.
+
+
