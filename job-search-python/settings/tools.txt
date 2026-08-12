@@ -1,0 +1,28 @@
+# Tool values — one per line.
+
+Amazon Web Services:AWS
+AWS
+Azure
+CSharp
+CI/CD
+Claude
+CloudWatch
+DevOps
+DynamoDB
+EC2
+FastAPI
+GCP
+Google Cloud Platform:GCP
+IAM
+LaunchDarkly
+Linux
+MCP
+Model Context Protocol:MCP
+MongoDB
+PostgreSQL
+RDS
+S3
+SDLC
+SQL Server
+Terraform
+VPC

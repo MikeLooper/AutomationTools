@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Search Report — {{ timestamp }}</title>
+<style>
+  :root {
+    --green: #22c55e; --yellow: #eab308; --red: #ef4444;
+    --bg: #f8fafc; --card: #fff; --border: #e2e8f0;
+    --text: #1e293b; --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 2rem; }
+  h1 { font-size: 1.75rem; margin-bottom: .25rem; }
+  .meta { color: var(--muted); font-size: .9rem; margin-bottom: 2rem; }
+  .summary-bar {
+    display: flex; gap: 1.5rem; background: var(--card);
+    border: 1px solid var(--border); border-radius: .75rem;
+    padding: 1rem 1.5rem; margin-bottom: 2rem; font-size: .95rem;
+  }
+  .summary-bar span { font-weight: 600; }
+  .followup-summary {
+    margin-bottom: 2rem;
+    background: #ecfdf5;
+    border: 1px solid #86efac;
+    border-radius: .75rem;
+    padding: 1rem 1.25rem;
+  }
+  .followup-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #166534;
+    margin-bottom: .75rem;
+  }
+  .followup-list {
+    display: grid;
+    gap: .5rem;
+  }
+  .followup-item {
+    background: #ffffff;
+    border: 1px solid #bbf7d0;
+    border-radius: .5rem;
+    padding: .65rem .75rem;
+    font-size: .9rem;
+  }
+  .followup-item a { color: #166534; text-decoration: none; }
+  .followup-item a:hover { text-decoration: underline; }
+  .followup-meta { color: var(--muted); font-size: .8rem; margin-top: .15rem; word-break: break-all; }
+  .warning-summary {
+    margin-bottom: 2rem;
+    background: #fff7ed;
+    border: 1px solid #fdba74;
+    border-radius: .75rem;
+    padding: 1rem 1.25rem;
+  }
+  .warning-title {
+    color: #9a3412;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: .5rem;
+  }
+  .warning-list { margin-left: 1rem; color: #7c2d12; font-size: .9rem; }
+  .excluded-badge {
+    display: inline-block; background: #ef4444; color: #fff;
+    font-size: .75rem; font-weight: 600; padding: .15rem .5rem;
+    border-radius: 999px; margin-top: .4rem; margin-left: .35rem;
+  }
+  .exclusion-reason {
+    margin-top: .75rem;
+    padding: .6rem .75rem;
+    border: 1px solid #fecaca;
+    border-radius: .5rem;
+    background: #fef2f2;
+    font-size: .85rem;
+    color: #991b1b;
+  }
+  .url-section { margin-bottom: 3rem; }
+  .url-header {
+    background: #1e293b; color: #f1f5f9;
+    padding: .75rem 1rem; border-radius: .5rem .5rem 0 0;
+    font-size: .85rem; word-break: break-all;
+  }
+  .error-box {
+    background: #fef2f2; border: 1px solid #fecaca;
+    padding: .75rem 1rem; border-radius: 0 0 .5rem .5rem;
+    color: var(--red);
+  }
+  .jobs-grid { display: grid; gap: 1rem; }
+  .job-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 0 0 .5rem .5rem; padding: 1.25rem;
+    border-top: 4px solid var(--border);
+  }
+  .job-card.recommended { border-top-color: var(--green); }
+  .job-card.medium      { border-top-color: var(--yellow); }
+  .job-card.low         { border-top-color: var(--red); }
+  .job-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+  .job-title { font-size: 1.05rem; font-weight: 600; }
+  .job-url { font-size: .8rem; color: var(--muted); word-break: break-all; margin-top: .2rem; }
+  .job-url a { color: #3b82f6; text-decoration: none; }
+  .job-url a:hover { text-decoration: underline; }
+  .score-badge {
+    flex-shrink: 0; width: 3.5rem; height: 3.5rem;
+    border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 1rem;
+    background: #f1f5f9; color: var(--text);
+  }
+  .recommended .score-badge { background: #dcfce7; color: #166534; }
+  .medium      .score-badge { background: #fef9c3; color: #713f12; }
+  .low         .score-badge { background: #fee2e2; color: #991b1b; }
+  .rec-badge {
+    display: inline-block; background: var(--green); color: #fff;
+    font-size: .75rem; font-weight: 600; padding: .15rem .5rem;
+    border-radius: 999px; margin-top: .4rem;
+  }
+  .attrs { margin-top: 1rem; display: grid; gap: .5rem; }
+  .attr-row { display: flex; gap: .75rem; font-size: .9rem; }
+  .attr-name { font-weight: 500; min-width: 10rem; color: var(--muted); }
+  .attr-val  { flex: 1; }
+  .match-table { margin-top: 1rem; width: 100%; border-collapse: collapse; font-size: .85rem; }
+  .match-table th, .match-table td { padding: .4rem .75rem; text-align: left; border-bottom: 1px solid var(--border); }
+  .match-table th { background: var(--bg); font-weight: 600; }
+  .match-yes { color: var(--green); font-weight: 600; }
+  .match-no  { color: var(--red); }
+  .no-jobs { color: var(--muted); padding: 1rem; text-align: center; background: var(--card);
+             border: 1px solid var(--border); border-radius: 0 0 .5rem .5rem; }
+</style>
+</head>
+<body>
+
+<h1>🔍 Job Search Report</h1>
+<p class="meta">Generated: {{ timestamp }} &nbsp;·&nbsp; Match threshold: {{ match_pct }}%</p>
+
+<div class="summary-bar">
+  <div>Search URLs: <span>{{ results | length }}</span></div>
+  <div>Total jobs found: <span>{{ total_jobs }}</span></div>
+  <div>Recommended: <span>{{ recommended }}</span></div>
+</div>
+
+{% if exclusion_warnings %}
+<section class="warning-summary">
+  <div class="warning-title">⚠️ Exclusion Rules Notes</div>
+  <ul class="warning-list">
+    {% for warning in exclusion_warnings %}
+    <li>{{ warning }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if recommended_jobs %}
+<section class="followup-summary">
+  <div class="followup-title">✅ Recommended for Follow-Up ({{ recommended_jobs | length }})</div>
+  <div class="followup-list">
+    {% for item in recommended_jobs %}
+    <div class="followup-item">
+      <div>
+        {% if item.job_url %}
+          <a href="{{ item.job_url }}" target="_blank" rel="noopener">{{ item.job_title }}</a>
+        {% else %}
+          {{ item.job_title }}
+        {% endif %}
+        · <strong>{{ item.match_score }}%</strong>
+      </div>
+      <div class="followup-meta">From search URL: {{ item.source_url }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% for result in results %}
+<div class="url-section">
+  <div class="url-header">🌐 {{ result.url }}</div>
+
+  {% if result.error is defined %}
+  <div class="error-box">⚠️ Error: {{ result.error }}</div>
+
+  {% elif result.jobs | length == 0 %}
+  <div class="no-jobs">No jobs found for this URL.</div>
+
+  {% else %}
+  <div class="jobs-grid">
+  {% for job in result.jobs %}
+    {% set score = job.match_score %}
+    {% if job.recommended %}
+      {% set card_class = "recommended" %}
+    {% elif score >= 40 %}
+      {% set card_class = "medium" %}
+    {% else %}
+      {% set card_class = "low" %}
+    {% endif %}
+    <div class="job-card {{ card_class }}">
+      <div class="job-header">
+        <div>
+          <div class="job-title">{{ job.attributes.get('Job Title', '(no title)') }}</div>
+          <div class="job-url">
+            {% if job.job_url %}
+              <a href="{{ job.job_url }}" target="_blank" rel="noopener">{{ job.job_url }}</a>
+            {% else %}
+              (no URL)
+            {% endif %}
+          </div>
+          {% if job.recommended %}
+            <span class="rec-badge">✅ Recommended for follow-up</span>
+          {% elif job.excluded %}
+            <span class="excluded-badge">🚫 Excluded</span>
+          {% endif %}
+        </div>
+        <div class="score-badge" title="Match score">{{ score }}%</div>
+      </div>
+
+      <div class="attrs">
+        {% for attr_name, attr_val in job.attributes.items() %}
+        <div class="attr-row">
+          <div class="attr-name">{{ attr_name }}</div>
+          <div class="attr-val">{{ attr_val if attr_val else '—' }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if job.excluded and job.exclusion_details %}
+      <div class="exclusion-reason">
+        Excluded by:
+        {% for exclusion in job.exclusion_details %}
+          <div>{{ exclusion.rule }} (matched: {{ exclusion.extracted }})</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if job.match_details %}
+      <table class="match-table">
+        <thead>
+          <tr><th>Rule</th><th>Result</th><th>Extracted Value</th></tr>
+        </thead>
+        <tbody>
+          {% for detail in job.match_details %}
+          <tr>
+            <td>{{ detail.rule }}</td>
+            <td class="{{ 'match-yes' if detail.matched else 'match-no' }}">
+              {{ '✔ Match' if detail.matched else '✘ No match' }}
+            </td>
+            <td>{{ detail.extracted }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+</body>
+</html>
