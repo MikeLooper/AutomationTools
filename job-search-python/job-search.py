@@ -227,6 +227,7 @@ def main() -> None:
     report_dir.mkdir(parents=True, exist_ok=True)
 
     all_results: list[dict] = []
+    unknown_site_urls: list[str] = []
 
     for url in urls:
         print(f"\n{'='*60}")
@@ -234,6 +235,17 @@ def main() -> None:
         print('='*60)
 
         extractor = get_extractor(url)
+        if extractor is None:
+            print(f"  SKIPPED: No extractor configured for site: {url}")
+            unknown_site_urls.append(url)
+            all_results.append({
+                "url": url,
+                "jobs": [],
+                "unknown_site": True,
+                "error": "Site not recognized; extraction skipped.",
+            })
+            continue
+
         try:
             jobs = extractor.extract(url, attributes)
             if max_jobs_per_url > 0:
@@ -278,6 +290,7 @@ def main() -> None:
             "match_pct": match_pct,
             "max_jobs_per_url": max_jobs_per_url,
             "exclusion_warnings": exclusion_warnings,
+            "unknown_site_urls": unknown_site_urls,
             "results": all_results,
         }, fh, indent=2)
 
@@ -290,6 +303,7 @@ def main() -> None:
         run_parameters=run_parameters,
         effective_parameters=effective_parameters,
         exclusion_warnings=exclusion_warnings,
+        unknown_site_urls=unknown_site_urls,
     )
     os.startfile(str(html_path))
 

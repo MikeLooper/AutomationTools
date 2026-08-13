@@ -1,6 +1,7 @@
 # Programming Language rules — one per line.
 
 .NET
+Bash
 C#
 CSS
 Go
@@ -11,3 +12,6 @@ JavaScript
 Node.js
 Python
 ReactJS
+Ruby
+Rails
+TypeScript

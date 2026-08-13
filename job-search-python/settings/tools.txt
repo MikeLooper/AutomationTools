@@ -6,23 +6,39 @@ Azure
 CSharp
 CI/CD
 Claude
+Cloud
 CloudWatch
+Codex
+Copilot
+Databricks
+Datadog
 DevOps
+Docker
 DynamoDB
 EC2
 FastAPI
 GCP
+Git
+GitHub
 Google Cloud Platform:GCP
+Grafana
 IAM
+Informatica
+Jenkins
+Kafka
+Kubernetes
 LaunchDarkly
 Linux
 MCP
 Model Context Protocol:MCP
 MongoDB
 PostgreSQL
+Prometheus
 RDS
 S3
 SDLC
+Snowflake
+SQL
 SQL Server
 Terraform
 VPC

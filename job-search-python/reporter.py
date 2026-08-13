@@ -17,6 +17,7 @@ def generate_report(
     run_parameters: list[dict] | None = None,
     effective_parameters: dict | None = None,
     exclusion_warnings: list[str] | None = None,
+    unknown_site_urls: list[str] | None = None,
 ) -> Path:
     env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)), autoescape=True)
     template = env.get_template("report.html.j2")
@@ -64,6 +65,7 @@ def generate_report(
         run_parameters=run_parameters or [],
         effective_parameters=effective_parameters or {},
         exclusion_warnings=exclusion_warnings or [],
+        unknown_site_urls=unknown_site_urls or [],
     )
 
     out_path = report_dir / "report.html"

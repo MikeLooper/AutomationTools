@@ -78,4 +78,13 @@ Update the docs to include all the recent changes.
 
 D.
 ---------------------
+Update the report as follows:
+- Currently, the 'Result' Column will show 'No match' (and a x icon) when the 'Extracted Value' is 'not found'.
+- Instead of that, display 'Missing' (and a caution icon) when the 'Extracted Value' is 'not found'.
 
+When any website is found in a URL that is not recognized (i.e. there is no extractor), do not try to extract information, but do place a note at the top of the report indicating that the site is not known.
+
+An extractor does not exist for the TopResume site, so values are not being extracted for display.
+Create a data extractor (and any related logic) that will extract the expected data elements, based upon this URL: https://careerio.topresume.com/app/job-search?view=search&query=Solutions+Architect&within_n_days=1&page=1&radius=25&only_auto_apply_jobs=true&correct_term=false&location_id=846250&job_type=full_time.
+Implement usage of the new extractor.
+Update the README for the new website.

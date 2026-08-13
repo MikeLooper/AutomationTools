@@ -195,6 +195,7 @@
   .match-table th { background: var(--bg); font-weight: 600; }
   .match-yes { color: var(--green); font-weight: 600; }
   .match-no  { color: var(--red); }
+  .match-missing { color: #b45309; font-weight: 600; }
   .no-jobs { color: var(--muted); padding: 1rem; text-align: center; background: var(--card);
              border: 1px solid var(--border); border-radius: 0 0 .5rem .5rem; }
 </style>
@@ -216,6 +217,17 @@
   <ul class="warning-list">
     {% for warning in exclusion_warnings %}
     <li>{{ warning }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if unknown_site_urls %}
+<section class="warning-summary">
+  <div class="warning-title">⚠️ Unknown Site Notes</div>
+  <ul class="warning-list">
+    {% for site_url in unknown_site_urls %}
+    <li>No extractor is configured for this URL, so extraction was skipped: {{ site_url }}</li>
     {% endfor %}
   </ul>
 </section>
@@ -308,10 +320,12 @@
         </thead>
         <tbody>
           {% for detail in job.match_details %}
+          {% set extracted_norm = detail.extracted | trim | lower %}
+          {% set is_missing = extracted_norm == 'not found' or extracted_norm == '(not found)' %}
           <tr>
             <td>{{ detail.rule }}</td>
-            <td class="{{ 'match-yes' if detail.matched else 'match-no' }}">
-              {{ '✔ Match' if detail.matched else '✘ No match' }}
+            <td class="{{ 'match-yes' if detail.matched else ('match-missing' if is_missing else 'match-no') }}">
+              {{ '✔ Match' if detail.matched else ('⚠ Missing' if is_missing else '✘ No match') }}
             </td>
             <td>{{ detail.extracted }}</td>
           </tr>

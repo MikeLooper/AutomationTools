@@ -196,6 +196,7 @@ After the files are written, the script opens `report.html` in your browser.
 | Greenhouse | Selenium — standard job board |
 | LinkedIn | Selenium — clicks each job card (login may be required for full details) |
 | Remotive | requests + BeautifulSoup (static HTML) |
+| TopResume (Careerio) | requests + BeautifulSoup with Selenium fallback for dynamic job-search pages |
 
 ## Alternative AI Tools
 

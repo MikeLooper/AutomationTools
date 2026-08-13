@@ -1,44 +1,47 @@
 # Example search URLs — one per line.
 # Lines starting with # are ignored.
 
+# Connecting Colorado, Solutions Architect:
+https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768665153968?recommended=0&query=Solutions+Architect&filter_jobType=full+time&filter_jobDuration=permanent
+
+# Connecting Colorado, Software Engineering Manager:
+https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768665154329?recommended=0&query=Software+Engineering+Manager&filter_jobType=full+time&filter_jobDuration=permanent
+
+# Connecting Colorado, Senior Software Engineer:
+https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768664421877?recommended=0&query=Senior+Software+Engineer&filter_jobType=full+time&filter_jobDuration=permanent
+
+# Connecting Colorado, Staff Software Engineer:
+https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768666206016?recommended=0&query=Staff+Software+Engineer&filter_jobType=full+time&filter_jobDuration=permanent
+
+# Connecting Colorado, .NET:
+https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768665751055?recommended=0&query=.net&filter_jobType=full+time&filter_jobDuration=permanent
+
 # Dice, Solutions Architect:
-https://www.dice.com/jobs?filters.postedDate=THREE&filters.employmentType=FULLTIME&filters.workplaceTypes=Remote%7COn-Site%7CHybrid&radius=30&location=Lone+Tree%2C+CO%2C+USA&q=Solutions+Architect&latitude=39.5362858&longitude=-104.8855322&countryCode=US&locationPrecision=City&adminDistrictCode=CO
+https://www.dice.com/jobs?filters.postedDate=THREE&filters.employmentType=FULLTIME&radius=30&location=Lone+Tree%2C+CO%2C+USA&q=Solutions+Architect&latitude=39.5362858&longitude=-104.8855322&countryCode=US&locationPrecision=City&adminDistrictCode=CO
 
 ## Dice, Software Engineering Manager:
-#https://www.dice.com/jobs?adminDistrictCode=CO&countryCode=US&filters.employmentType=FULLTIME&filters.postedDate=THREE&filters.workplaceTypes=Remote%7COn-Site%7CHybrid&latitude=39.5362858&location=Lone+Tree%2C+CO%2C+USA&locationPrecision=City&longitude=-104.8855322&q=Software+Engineering+Manager&radius=30
+https://www.dice.com/jobs?filters.postedDate=THREE&filters.employmentType=FULLTIME&radius=30&adminDistrictCode=CO&countryCode=US&latitude=39.5362858&location=Lone+Tree%2C+CO%2C+USA&locationPrecision=City&longitude=-104.8855322&q=Software+Engineering+Manager
 
-# Dice, Software Engineer:
-https://www.dice.com/jobs?adminDistrictCode=CO&countryCode=US&filters.employmentType=FULLTIME&filters.postedDate=THREE&filters.workplaceTypes=Remote%7COn-Site%7CHybrid&latitude=39.5362858&location=Lone+Tree%2C+CO%2C+USA&locationPrecision=City&longitude=-104.8855322&q=Software+Engineer&radius=30
+# Dice, Senior Software Engineer:
+https://www.dice.com/jobs?adminDistrictCode=CO&countryCode=US&filters.employmentType=FULLTIME&filters.postedDate=THREE&latitude=39.5362858&location=Lone+Tree%2C+CO%2C+USA&locationPrecision=City&longitude=-104.8855322&q=Senior+Software+Engineer&radius=30
 
-## GlassDoor, Solutions Architect:
-#https://www.glassdoor.com/Job/lone-tree-solutions-architect-jobs-SRCH_IL.0,9_IC1164306_KO10,29.htm?fromAge=3&maxSalary=300000&minSalary=200000
-#
-## GlassDoor, Software Engineering Manager:
-#https://www.glassdoor.com/Job/lone-tree-software-engineering-manager-jobs-SRCH_IL.0,9_IC1164306_KO10,38.htm?maxSalary=300000&minSalary=200000&fromAge=7
-#
-## GlassDoor, Software Engineer:
-#https://www.glassdoor.com/Job/lone-tree-software-engineer-jobs-SRCH_IL.0,9_IC1164306_KO10,27.htm?maxSalary=300000&minSalary=200000&fromAge=3
-#
-## Greenhouse, Solutions Architect:
-#https://my.greenhouse.io/jobs?query=Solutions%20Architect&location=Lone%20Tree%2C%20Colorado%2C%20United%20States&lat=39.522307&lon=-104.867045&location_type=locality&country_short_name=US&state_short_name=CO&date_posted=past_five_days&salary=more_than_200k&employment_type[]=full_time
-#
-## Greenhouse, Software Engineering Manager:
-#https://my.greenhouse.io/jobs?query=Software%20Engineering%20Manager&location=Lone%20Tree%2C%20Colorado%2C%20United%20States&lat=39.522307&lon=-104.867045&location_type=locality&country_short_name=US&state_short_name=CO&date_posted=past_five_days&salary=more_than_200k&employment_type[]=full_time
-#
-## Greenhouse, Software Engineer:
-#https://my.greenhouse.io/jobs?query=Software%20Engineer&location=Lone%20Tree%2C%20Colorado%2C%20United%20States&lat=39.522307&lon=-104.867045&location_type=locality&country_short_name=US&state_short_name=CO&date_posted=past_day&salary=more_than_200k&employment_type[]=full_time
-#
-## LinkedIn, Solutions Architect:
-#https://www.linkedin.com/jobs/search/?currentJobId=4422024997&distance=25&f_JT=F&f_SB2=9&f_TPR=r86400&f_WT=1%2C2%2C3&geoId=106194045&keywords=solutions%20architect&origin=JOB_SEARCH_PAGE_JOB_FILTER
-#
-## LinkedIn, Software Engineering Manager:
-#https://www.linkedin.com/jobs/search/?currentJobId=4395664560&distance=25&f_JT=F&f_SB2=9&f_TPR=r86400&f_WT=1%2C3%2C2&geoId=106194045&keywords=software%20engineering%20manager%3B%20c%23&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=R
-#
-## LinkedIn, Software Engineer:
-#https://www.linkedin.com/jobs/search/?currentJobId=4439713887&distance=25&f_JT=F&f_SB2=9&f_T=9%2C39%2C1586%2C25194%2C607&f_TPR=r86400&f_WT=1%2C3%2C2&geoId=106194045&keywords=software%20engineer%3B%20c%23&origin=JOB_SEARCH_PAGE_JOB_FILTER&sortBy=R
-#
-## LinkedIn, C#:
-#https://www.linkedin.com/jobs/search/?currentJobId=4425412627&distance=25&f_JT=F&f_SB2=9&f_T=9%2C1586%2C25194%2C39%2C607&f_TPR=r86400&f_WT=1%2C2%2C3&geoId=106194045&keywords=%22c%23%22&origin=JOB_SEARCH_PAGE_JOB_FILTER&refresh=true&sortBy=DD
+# Dice, Staff Software Engineer:
+https://www.dice.com/jobs?filters.postedDate=THREE&filters.employmentType=FULLTIME&radius=30&adminDistrictCode=CO&countryCode=US&latitude=39.5362858&location=Lone+Tree%2C+CO%2C+USA&locationPrecision=City&longitude=-104.8855322&q=Staff+Software+Engineer
+
+# Dice, C#:
+https://www.dice.com/jobs?adminDistrictCode=CO&countryCode=US&filters.employmentType=FULLTIME&filters.postedDate=THREE&latitude=39.5362858&location=Lone+Tree%2C+CO%2C+USA&locationPrecision=City&longitude=-104.8855322&q=C%23&radius=30
+
+# Dice, .NET:
+https://www.dice.com/jobs?adminDistrictCode=CO&countryCode=US&filters.employmentType=FULLTIME&filters.postedDate=THREE&latitude=39.5362858&location=Lone+Tree%2C+CO%2C+USA&locationPrecision=City&longitude=-104.8855322&q=.net&radius=30
+
+# GlassDoor, Solutions Architect:
+#...
+
+# Greenhouse, Solutions Architect:
+#...
+
+# LinkedIn, Solutions Architect:
+#...
 
 # Remotive, Solutions Architect:
 https://remotive.com/remote-jobs?query=Solutions+Architect&location=USA&employment-type=full-time&min_salary=200000
@@ -46,17 +49,26 @@ https://remotive.com/remote-jobs?query=Solutions+Architect&location=USA&employme
 # Remotive, Software Engineering Manager:
 https://remotive.com/remote-jobs?query=Software+Engineering+Manager&location=USA&employment-type=full-time&min_salary=200000
 
-# Remotive, Software Engineer:
-https://remotive.com/remote-jobs?query=Software+Engineer&location=USA&employment-type=full-time&min_salary=200000
+# Remotive, Senior Software Engineer:
+https://remotive.com/remote-jobs?query=Senior+Software+Engineer&location=USA&employment-type=full-time&min_salary=200000
+
+# Remotive, Staff Software Engineer:
+https://remotive.com/remote-jobs?query=Staff+Software+Engineer&location=USA&employment-type=full-time&min_salary=200000
 
 # Remotive, .NET
 https://remotive.com/remote-jobs?query=%22.net%22&location=USA&employment-type=full-time&min_salary=200000
 
-# Workforce Colorado, Solutions Architect:
-https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768665153968?recommended=0&query=Solutions+Architect&filter_jobType=full+time&filter_jobDuration=permanent
+#TopResume, Solutions Architect:
+https://careerio.topresume.com/app/job-search?view=search&query=Solutions+Architect&within_n_days=1&page=1&radius=25&only_auto_apply_jobs=true&correct_term=false&location_id=846250&job_type=full_time
 
-# Workforce Colorado, Software Engineering Manager:
-https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768665154329?recommended=0&query=Software+Engineering+Manager&filter_jobType=full+time&filter_jobDuration=permanent
+#TopResume, Software Engineering Manager:
+https://careerio.topresume.com/app/job-search?view=search&query=Software+Engineering+Manager&within_n_days=1&page=1&radius=25&only_auto_apply_jobs=true&correct_term=false&location_id=846250&job_type=full_time
 
-# Workforce Colorado, Software Engineer:
-https://jobs.connectingcolorado.gov/careerhub/explore/jobs/844768665153809?recommended=0&query=Software+Engineer&filter_jobType=full+time&filter_jobDuration=permanent
+#TopResume, Senior Software Engineer:
+https://careerio.topresume.com/app/job-search?view=search&query=Senior+Software+Engineer&within_n_days=1&page=1&radius=25&only_auto_apply_jobs=true&correct_term=false&location_id=846250&job_type=full_time&auto_apply_compatible=undefined&min_salary=170000&max_salary=300000
+
+#TopResume, Staff Software Engineer:
+https://careerio.topresume.com/app/job-search?view=search&query=Staff+Software+Engineer&within_n_days=1&page=1&radius=25&only_auto_apply_jobs=true&correct_term=false&location_id=846250&job_type=full_time&auto_apply_compatible=undefined&min_salary=170000&max_salary=300000
+
+#TopResume, .NET:
+https://careerio.topresume.com/app/job-search?view=search&query=.NET&within_n_days=2&page=1&radius=25&only_auto_apply_jobs=true&correct_term=false&location_id=846250&job_type=full_time&auto_apply_compatible=undefined&min_salary=170000&max_salary=300000
