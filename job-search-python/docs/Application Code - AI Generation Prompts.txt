@@ -88,3 +88,26 @@ An extractor does not exist for the TopResume site, so values are not being extr
 Create a data extractor (and any related logic) that will extract the expected data elements, based upon this URL: https://careerio.topresume.com/app/job-search?view=search&query=Solutions+Architect&within_n_days=1&page=1&radius=25&only_auto_apply_jobs=true&correct_term=false&location_id=846250&job_type=full_time.
 Implement usage of the new extractor.
 Update the README for the new website.
+
+E.
+---------------------
+For the connecting colorado extractor, if no salary is found on a webpage, extract data from the following webpage elements:
+- Minimum Salary: 
+	- Locate the HTML class with a "field-label" = `Minimum Salary`.
+	- The Minimum Salary is in the following paragraph.
+	- Example HTML:
+		```
+		<p class="field-label">Minimum Salary</p>
+		<p>129000</p>
+		```
+- Maximum Salary: 
+	- Locate the HTML class with a "field-label" = `Maximum Salary`.
+	- The Maximum Salary is in the following paragraph.
+	- Example HTML:
+		```
+		<p class="field-label">Maximum Salary</p>
+		<p>184000</p>
+		```
+
+F.
+---------------------
