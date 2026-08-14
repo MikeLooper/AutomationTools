@@ -19,7 +19,7 @@ The orchestrator that ties everything together:
 
 - **Process Flow**
   1. For each URL:
-  - Detect the job board (Connecting Colorado, Dice, LinkedIn, GlassDoor, Greenhouse, Remotive, or generic)
+  - Detect the job board (Connecting Colorado, Dice, LinkedIn, Greenhouse, Remotive, or generic)
      - Launch site-specific Selenium extractor
      - Extract all jobs and requested attributes
     2. Optionally trim each URL result set to `--max-jobs-per-url` jobs (0 means no limit)
@@ -55,7 +55,6 @@ The orchestrator that ties everything together:
 |------|-------|-------|
 | jobs.connectingcolorado.gov | `ConnectingColoradoExtractor` | Clicks each left-side job card and extracts description from right-side detail pane |
 | Dice.com | `DiceExtractor` | Standard Selenium scraping |
-| Glassdoor | `GlassdoorExtractor` | Handles dynamic content |
 | Greenhouse.io | `GreenhouseExtractor` | ATS job board |
 | LinkedIn | `LinkedInExtractor` | **Non-headless required** (login walls) |
 | Remotive | `RemotiveExtractor` | Remote job specialization |
@@ -243,7 +242,7 @@ Salary Range Includes 150K
 ```
 # settings/urls.txt
 https://www.dice.com/jobs?q=Solutions+Architect&location=Denver%2C+CO
-https://www.glassdoor.com/Job/denver-solutions-architect-jobs
+https://remotive.com/remote-jobs?query=Solutions+Architect&location=USA&employment-type=full-time&min_salary=200000
 
 # settings/attributes.txt
 Job Title
@@ -299,7 +298,7 @@ Tools=CI/CD OR Kubernetes OR Linux
 
 ## Key Features
 
-✅ **Multi-Site Support** - Seamlessly extract from Connecting Colorado, Dice, LinkedIn, GlassDoor, Greenhouse, Remotive, or any site  
+✅ **Multi-Site Support** - Seamlessly extract from Connecting Colorado, Dice, LinkedIn, Greenhouse, Remotive, or any site  
 ✅ **Intelligent Extraction** - Automatically identifies job titles, technologies, and salary ranges  
 ✅ **Flexible Matching** - Supports exact matches, OR logic, and complex salary range validation  
 ✅ **Anti-Detection** - Masks browser automation to bypass bot detection  
@@ -307,6 +306,9 @@ Tools=CI/CD OR Kubernetes OR Linux
 ✅ **Rich Reporting** - HTML visualization + JSON export  
 ✅ **Extensible Extractors** - Add new job boards by creating a new extractor class  
 ✅ **Configuration-Driven Extraction** - Programming Language and Tools are driven by alias files, not hard-coded lists  
+
+Note: GlassDoor was originally an option for scraping, but it was discovered that GlassDoor uses bot-detection code (via Cloudflare); and you would be prompted, and have to respond, that you are human throughout the entire scraping process.
+Therefore, all GlassDoor logic has been removed unti further notice.
 
 ---
 
@@ -328,7 +330,6 @@ job-search/
 │   ├── dispatcher.py            # URL → Extractor routing
 │   ├── linkedin.py              # LinkedIn-specific
 │   ├── dice.py                  # Dice-specific
-│   ├── glassdoor.py             # GlassDoor-specific
 │   ├── greenhouse.py            # Greenhouse-specific
 │   ├── remotive.py              # Remotive-specific
 │   └── generic.py               # Fallback extractor

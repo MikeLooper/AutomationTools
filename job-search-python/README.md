@@ -192,7 +192,6 @@ After the files are written, the script opens `report.html` in your browser.
 |------|-------------------|
 | Connecting Colorado | Selenium - clicks each job card in the left panel and reads details from the right pane |
 | Dice | Selenium — clicks each job card in the left panel |
-| Glassdoor | Selenium — clicks each job card, handles sign-in wall |
 | Greenhouse | Selenium — standard job board |
 | LinkedIn | Selenium — clicks each job card (login may be required for full details) |
 | Remotive | requests + BeautifulSoup (static HTML) |
@@ -208,4 +207,4 @@ For richer LLM-based attribute extraction, consider:
 | **Anthropic Claude 3.5 Sonnet** | Same pattern — pipe job text into a Claude prompt asking for structured extraction. Excellent at reasoning about salary ranges stated in non-standard prose. |
 | **LangChain + any LLM** | Use LangChain's `WebBaseLoader` + an extraction chain to scrape and parse in one pipeline. Simplifies site-specific handling. |
 | **Playwright + AI SDK** | Microsoft's Playwright MCP server can be driven by an LLM agent to handle complex JS-heavy pages better than Selenium. |
-| **Bright Data / ScrapingBee** | Proxy-based scraping APIs that handle bot-detection on LinkedIn / Glassdoor, reducing need for manual Selenium cookie handling. |
+| **Bright Data / ScrapingBee** | Proxy-based scraping APIs that handle bot-detection on LinkedIn, reducing need for manual Selenium cookie handling. |

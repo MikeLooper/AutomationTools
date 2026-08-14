@@ -4,7 +4,6 @@ This folder contains local-only runtime secrets used by batch scripts for loggin
 
 ## Files expected by scripts
 
-- `secrets/www.glassdoor.com.env`
 - `secrets/www.linkedin.com.env`
 - ...
 

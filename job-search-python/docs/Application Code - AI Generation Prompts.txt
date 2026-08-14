@@ -111,3 +111,36 @@ For the connecting colorado extractor, if no salary is found on a webpage, extra
 
 F.
 ---------------------
+Update the application to allow access to the Glassdoor website.
+Because Glassdoor is a login-protected website, you must update the access process for any URL with a hostname of `www.glassdoor.com`.
+To accomplish the login and access, use the "Headed Pause" Approach.
+This approach is highly effective because it naturally bypasses CAPTCHAs, bot detectors, and strict 2FA systems that block standard automated scripts.
+
+Settings:
+1. The `settings\loginpage.txt` file contains a list of websites that require a login.
+2. Any file line that starts with a `#`, or is blank, will be ignored.
+3. Each non-ignored line will consist of two parts separated by a pipe character (`|`).
+	- For any line that does not follow this pattern raise an error and then ignore the line and continue processing.
+	- Example line: `https://www.glassdoor.com/index.htm|https://www.glassdoor.com/home`
+4. The first part of the line is the login page.
+5. The second part of the line is the post-login page, where the user should end-up after logging in.
+
+Login Decision:
+If the base host of a job search URL matches the base host of an entry in the `loginpage.txt` file, then this login process must be used.
+There will be other websites that need to use this process, so make this code support multiple such sites.
+
+Implementation Steps:
+1. Launch a Headed Browser: Open a real, visible browser window so the user can see the login screen.
+2. Navigate to Login: Direct the browser to the target site's sign-in page from the loginpage file.
+3. Pause for Human Input: Wait for the user to type credentials, solve CAPTCHAs, or input a 2FA code.
+4. Detect Successful Login: Programmatically detect when the URL changes or a unique post-login element appears.
+5. Determine the token or cookie value that indicates an authenticated login has occurred and store this value for use in this scraping process and for any later job search URL.
+6. Resume Scraping: Keep the browser session open and immediately transition to parsing the target data.
+
+***
+After attempting the above modifcation, it was discovered that GlassDoor uses 
+bot-detection code (via Cloudflare); and you would be prompted, and have to respond, that you are 
+human throughout the entire scraping process.
+Therefore, all GlassDoor logic is being removed unti further notice.
+***
+
