@@ -27,6 +27,7 @@ DEFAULT_TARGETS_PATH = SETTINGS_DIR / "targets.txt"
 DEFAULT_EXCLUSIONS_PATH = SETTINGS_DIR / "exclusions.txt"
 DEFAULT_PROGRAMMING_LANGUAGES_PATH = SETTINGS_DIR / "programminglanguages.txt"
 DEFAULT_TOOLS_PATH = SETTINGS_DIR / "tools.txt"
+DEFAULT_JOB_TYPES_PATH = SETTINGS_DIR / "jobtypes.txt"
 DEFAULT_MATCH_PCT = 75
 DEFAULT_MAX_JOBS_PER_URL = 0
 
@@ -107,6 +108,11 @@ def main() -> None:
         help=f"Path to tools alias file (default: {DEFAULT_TOOLS_PATH})",
     )
     parser.add_argument(
+        "--jobtypes",
+        default=str(DEFAULT_JOB_TYPES_PATH),
+        help=f"Path to job type alias file (default: {DEFAULT_JOB_TYPES_PATH})",
+    )
+    parser.add_argument(
         "--match-pct",
         default=DEFAULT_MATCH_PCT,
         type=int,
@@ -134,6 +140,7 @@ def main() -> None:
     exclusion_lines = load_lines(args.exclusions)
     language_aliases = load_alias_lines(args.programminglanguages)
     tool_aliases = load_alias_lines(args.tools)
+    job_type_aliases = load_alias_lines(args.jobtypes)
     match_pct  = args.match_pct
     max_jobs_per_url = args.max_jobs_per_url
     exclusion_rules, exclusion_warnings = parse_exclusion_rules(exclusion_lines)
@@ -142,7 +149,7 @@ def main() -> None:
         print("ERROR: --max-jobs-per-url must be 0 or greater", file=sys.stderr)
         sys.exit(1)
 
-    configure_extraction_aliases(language_aliases, tool_aliases)
+    configure_extraction_aliases(language_aliases, tool_aliases, job_type_aliases)
 
     if not urls:
         if single_url:
@@ -195,6 +202,12 @@ def main() -> None:
             "supplied": _arg_supplied(raw_args, "--tools"),
         },
         {
+            "name": "--jobtypes",
+            "description": "Path to job type aliases file.",
+            "value": args.jobtypes,
+            "supplied": _arg_supplied(raw_args, "--jobtypes"),
+        },
+        {
             "name": "--match-pct",
             "description": "Minimum match percentage (0-100) to recommend a job.",
             "value": match_pct,
@@ -217,6 +230,7 @@ def main() -> None:
         "exclusions": args.exclusions,
         "programminglanguages": args.programminglanguages,
         "tools": args.tools,
+        "jobtypes": args.jobtypes,
         "match_pct": match_pct,
         "max_jobs_per_url": max_jobs_per_url,
     }

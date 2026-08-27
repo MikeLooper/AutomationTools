@@ -8,4 +8,4 @@
 
 Job Title=Solutions Architect OR Software Engineering Manager OR Software Engineer
 Programming Language=C# OR .NET
-Salary Range Includes 200K
+Salary Range Includes 200K OR Is Greater Than 200K

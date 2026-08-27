@@ -32,6 +32,7 @@ The script defaults to:
 - `settings/exclusions.txt`
 - `settings/programminglanguages.txt`
 - `settings/tools.txt`
+- `settings/jobtypes.txt`
 - `--url` not set (uses `--urls` file)
 - `--match-pct 75`
 - `--max-jobs-per-url 0` (no limit)
@@ -46,6 +47,7 @@ python job-search \
   --exclusions settings/exclusions.txt \
   --programminglanguages settings/programminglanguages.txt \
   --tools settings/tools.txt \
+  --jobtypes settings/jobtypes.txt \
   --match-pct 75 \
   --max-jobs-per-url 25
 ```
@@ -62,11 +64,12 @@ python job-search --url "https://remotive.com/remote-jobs/software-dev"
 |----------|-------------|
 | `--urls` | Path to a file containing one search URL per line. Defaults to `settings/urls.txt` |
 | `--url` | Single search URL to process. When provided, this overrides `--urls` and only this URL is used. |
-| `--attributes` | Path to a file listing the attributes to extract (e.g. `Job Title`, `Programming Language`, `Tools`, `Salary Range`). Defaults to `settings/attributes.txt` |
+| `--attributes` | Path to a file listing the attributes to extract (e.g. `Job Title`, `Job Type`, `Company`, `Location`, `Programming Language`, `Tools`, `Salary Range`). Defaults to `settings/attributes.txt` |
 | `--targets` | Path to a file listing target attribute values (e.g. `Job Title=Solutions Architect`). Defaults to `settings/targets.txt` |
 | `--exclusions` | Path to a file listing exclusion rules. Defaults to `settings/exclusions.txt` |
 | `--programminglanguages` | Path to programming-language aliases used for discovery/reporting. Defaults to `settings/programminglanguages.txt` |
 | `--tools` | Path to tool aliases used for discovery/reporting. Defaults to `settings/tools.txt` |
+| `--jobtypes` | Path to job type aliases used for discovery/reporting. Defaults to `settings/jobtypes.txt` |
 | `--match-pct` | Integer 0–100. Jobs scoring ≥ this value are flagged as **recommended**. Defaults to `75` |
 | `--max-jobs-per-url` | Integer ≥ 0. Limits how many extracted jobs are processed for each URL. `0` means no limit. Defaults to `0` |
 
@@ -85,6 +88,9 @@ One attribute name per line.
 
 ```
 Job Title
+Job Type
+Company
+Location
 Programming Language
 Tools
 Salary Range
@@ -98,12 +104,18 @@ One target rule per line. Supported operators:
 | `Job Title=Solutions Architect` | Exact (case-insensitive) match |
 | `Job Title=Solutions Architect OR Software Engineer` | Match if any listed value matches |
 | `Salary Range Includes 200K` | The discovered salary range must span $200,000 (i.e. min ≤ 200K ≤ max) |
+| `Salary Range Is Greater Than 200K` | Any bound of the discovered salary range must exceed $200,000 |
+| `Salary Range Is Less Than 100K` | Any bound of the discovered salary range must be below $100,000 |
+| `Salary Range Equals 200K` | One of the discovered salary range's stated figures must equal $200,000 exactly |
 | `Programming Language=Python` | Exact match |
+
+Any of the four Salary Range comparisons can be OR'd together on one line, e.g.
+`Salary Range Includes 200K OR Is Greater Than 250K`.
 
 ```
 Job Title=Solutions Architect
 Programming Language=Python OR Java OR C#
-Salary Range Includes 200K
+Salary Range Includes 200K OR Is Greater Than 250K
 ```
 
 ### settings/exclusions.txt
@@ -148,6 +160,23 @@ Amazon Web Services:AWS
 Google Cloud Platform:GCP
 Model Context Protocol:MCP
 PostgreSQL
+```
+
+### settings/jobtypes.txt
+One alias per line. These values are the source of truth for `Job Type` extraction.
+
+- No colon: the same value is used for discovery and reporting.
+- With colon: `discovery:reporting`.
+
+```
+Contract
+Full Time
+Full-time
+Hybrid
+On-site
+Permanent
+Remote
+Temporary
 ```
 
 ## Output

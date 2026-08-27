@@ -12,10 +12,11 @@ The orchestrator that ties everything together:
 
 - **Load Configuration Files**
   - `settings/urls.txt` - List of job search URLs to scrape (supports comments with `#`)
-  - `settings/attributes.txt` - Which job attributes to extract (e.g., Job Title, Programming Language, Tools, Salary Range)
+  - `settings/attributes.txt` - Which job attributes to extract (e.g., Job Title, Job Type, Company, Location, Programming Language, Tools, Salary Range)
   - `settings/targets.txt` - Matching rules to score jobs
   - `settings/programminglanguages.txt` - Programming-language discovery/reporting aliases
   - `settings/tools.txt` - Tool discovery/reporting aliases
+  - `settings/jobtypes.txt` - Job-type discovery/reporting aliases (e.g., Remote, Hybrid, Contract)
 
 - **Process Flow**
   1. For each URL:
@@ -37,6 +38,7 @@ The orchestrator that ties everything together:
   - `--targets` - Path to targets file (default: `settings/targets.txt`)
   - `--programminglanguages` - Path to language aliases file (default: `settings/programminglanguages.txt`)
   - `--tools` - Path to tools aliases file (default: `settings/tools.txt`)
+  - `--jobtypes` - Path to job type aliases file (default: `settings/jobtypes.txt`)
   - `--match-pct` - Minimum recommendation threshold 0-100 (default: 75)
   - `--max-jobs-per-url` - Maximum jobs processed per URL; `0` means no limit (default: 0)
 
@@ -66,6 +68,9 @@ The orchestrator that ties everything together:
 
 **Attribute Extraction Helpers:**
 - **Job Title**: Regex patterns or first non-empty line
+- **Company**: Labeled field (`Company:`/`Employer:`/`Organization:`) or "at \<Company\>" phrasing
+- **Location**: Labeled `Location:` field, "City, ST" pattern, or "Remote"
+- **Job Type**: Uses `settings/jobtypes.txt` aliases as the source of truth (e.g., Remote, Hybrid, Contract, Full-time)
 - **Programming Language**: Uses `settings/programminglanguages.txt` aliases as the source of truth
 - **Tools**: Uses `settings/tools.txt` aliases as the source of truth
 - **Salary Range**: Extracts patterns like "$100,000 - $200,000", "100K–200K", "Up to $300K", "$150K+"
@@ -96,13 +101,21 @@ Evaluates how well extracted job attributes match user-defined target rules.
    - Matches if ANY option is found in extracted attribute
    - Example: `Programming Language=C# OR .NET OR Java`
 
-3. **Salary Range Inclusion**
+3. **Salary Range Comparisons**
    ```
    Salary Range Includes <amount>
+   Salary Range Is Greater Than <amount>
+   Salary Range Is Less Than <amount>
+   Salary Range Equals <amount>
    ```
-   - Validates if job's salary range spans the specified amount
+   - `Includes` — the salary range must span the specified amount (min ≤ amount ≤ max)
+   - `Is Greater Than` — any bound of the salary range must exceed the amount
+   - `Is Less Than` — any bound of the salary range must be below the amount
+   - `Equals` — one of the salary range's stated figures must equal the amount exactly
    - Amount formats: `200000`, `200K`, `$200K`, `$200,000`
    - Handles ranges like "$150K–$250K", "Up to $300K", "$200K+"
+   - Any of the four comparisons can be OR'd together on one line, e.g.
+     `Salary Range Includes 200K OR Is Greater Than 250K`
    - Example: `Salary Range Includes 200K` (checks if job salary includes $200,000)
 
 **Matching Algorithm:**
@@ -323,7 +336,8 @@ job-search/
 │   ├── attributes.txt           # Extraction targets (config)
 │   ├── targets.txt              # Matching rules (config)
 │   ├── programminglanguages.txt # Language aliases (discovery/reporting)
-│   └── tools.txt                # Tool aliases (discovery/reporting)
+│   ├── tools.txt                # Tool aliases (discovery/reporting)
+│   └── jobtypes.txt             # Job type aliases (discovery/reporting)
 ├── requirements.txt             # Python dependencies
 ├── extractors/
 │   ├── base.py                  # Base class + helpers
@@ -354,4 +368,4 @@ job-search/
 3. **Generic extractor** uses CSS class heuristics; may miss jobs on non-standard sites
 4. **Selenium drivers** auto-managed but require Chrome/Chromium installed
 5. **Report timestamps** use format: `YYYY-MM-DD_HH-MM` (note leading "1" for sorting)
-6. **Alias-based extraction**: `programminglanguages.txt` and `tools.txt` support `discovery:reporting` values; if no colon is present, the same value is used for both
+6. **Alias-based extraction**: `programminglanguages.txt`, `tools.txt`, and `jobtypes.txt` support `discovery:reporting` values; if no colon is present, the same value is used for both

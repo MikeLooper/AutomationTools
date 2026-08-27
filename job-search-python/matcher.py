@@ -116,6 +116,12 @@ def _parse_salary_amount(text: str) -> int | None:
     return int(value)
 
 
+def _parse_salary_numbers(salary_attr: str) -> list[int]:
+    """Pull every number (min/max bounds, or a lone figure) out of a salary string."""
+    tokens = re.findall(r"\$?[\d,]+(?:\.\d+)?[kK]?", salary_attr)
+    return [n for n in (_parse_salary_amount(t) for t in tokens) if n is not None]
+
+
 def _salary_range_includes(salary_attr: str, amount: int) -> bool:
     """
     Return True if the salary range string spans the given amount.
@@ -129,9 +135,7 @@ def _salary_range_includes(salary_attr: str, amount: int) -> bool:
     if not salary_attr:
         return False
 
-    # Try to pull two numbers (min and max)
-    tokens = re.findall(r"\$?[\d,]+(?:\.\d+)?[kK]?", salary_attr)
-    numbers = [_parse_salary_amount(t) for t in tokens if _parse_salary_amount(t) is not None]
+    numbers = _parse_salary_numbers(salary_attr)
 
     if len(numbers) >= 2:
         low, high = sorted(numbers[:2])
@@ -149,6 +153,68 @@ def _salary_range_includes(salary_attr: str, amount: int) -> bool:
         return single == amount
 
     return False
+
+
+def _salary_range_greater_than(salary_attr: str, amount: int) -> bool:
+    """True if any bound of the salary range exceeds `amount`."""
+    numbers = _parse_salary_numbers(salary_attr)
+    return bool(numbers) and max(numbers) > amount
+
+
+def _salary_range_less_than(salary_attr: str, amount: int) -> bool:
+    """True if any bound of the salary range is below `amount`."""
+    numbers = _parse_salary_numbers(salary_attr)
+    return bool(numbers) and min(numbers) < amount
+
+
+def _salary_range_equals(salary_attr: str, amount: int) -> bool:
+    """True if `amount` matches one of the salary range's stated figures exactly."""
+    return amount in _parse_salary_numbers(salary_attr)
+
+
+# Maps the comparison phrase that can appear in a "Salary Range <phrase> <value>"
+# target line to the function that evaluates it.
+SALARY_COMPARISONS = {
+    "includes": _salary_range_includes,
+    "is greater than": _salary_range_greater_than,
+    "is less than": _salary_range_less_than,
+    "equals": _salary_range_equals,
+}
+
+SALARY_RANGE_PREFIX_PATTERN = re.compile(r"^Salary\s+Range\s+(.+)$", re.IGNORECASE)
+SALARY_CLAUSE_PATTERN = re.compile(
+    r"^(Includes|Is\s+Greater\s+Than|Is\s+Less\s+Than|Equals)\s+(.+)$", re.IGNORECASE
+)
+
+
+def _parse_salary_rule(rule: str) -> list[tuple[Any, int]] | None:
+    """
+    Parse a "Salary Range <Comparison> <value>[ OR <Comparison> <value> ...]"
+    target line into a list of (compare_fn, amount) pairs, one per OR'd clause,
+    matched with logical OR (any clause matching is enough).
+
+    Returns None if `rule` isn't a Salary Range comparison line at all, or if
+    any OR'd clause doesn't parse — callers should fall back to the generic
+    AttributeName=Value handling in that case, same as before this comparison
+    syntax existed.
+    """
+    prefix_match = SALARY_RANGE_PREFIX_PATTERN.match(rule)
+    if not prefix_match:
+        return None
+
+    clauses: list[tuple[Any, int]] = []
+    for option in _split_or_values(prefix_match.group(1)):
+        clause_match = SALARY_CLAUSE_PATTERN.match(option)
+        if not clause_match:
+            return None
+        comparison = re.sub(r"\s+", " ", clause_match.group(1).strip().lower())
+        amount = _parse_salary_amount(clause_match.group(2).strip())
+        compare_fn = SALARY_COMPARISONS.get(comparison)
+        if compare_fn is None or amount is None:
+            return None
+        clauses.append((compare_fn, amount))
+
+    return clauses or None
 
 
 def compute_match(
@@ -170,15 +236,12 @@ def compute_match(
         if not rule or rule.startswith("#"):
             continue
 
-        # Salary Range Includes <amount>
-        includes_match = re.match(
-            r"Salary\s+Range\s+Includes\s+(.+)", rule, re.IGNORECASE
-        )
-        if includes_match:
-            raw_amount = includes_match.group(1).strip()
-            amount = _parse_salary_amount(raw_amount)
+        # Salary Range <Includes|Is Greater Than|Is Less Than|Equals> <amount>
+        # [OR <Comparison> <amount> ...] — OR'd clauses match on logical OR.
+        salary_clauses = _parse_salary_rule(rule)
+        if salary_clauses is not None:
             salary_val = extracted.get("Salary Range", "")
-            matched = _salary_range_includes(salary_val, amount) if amount else False
+            matched = any(compare_fn(salary_val, amount) for compare_fn, amount in salary_clauses)
             details.append({
                 "rule":      rule,
                 "matched":   matched,
