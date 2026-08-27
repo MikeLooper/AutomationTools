@@ -24,16 +24,19 @@ DEFAULT_LANGUAGE_ALIASES: list[tuple[str, str]] = [
 
 _LANGUAGE_ALIASES: list[tuple[str, str]] = DEFAULT_LANGUAGE_ALIASES.copy()
 _TOOL_ALIASES: list[tuple[str, str]] = []
+_JOB_TYPE_ALIASES: list[tuple[str, str]] = []
 
 
 def configure_extraction_aliases(
     language_aliases: list[tuple[str, str]] | None,
     tool_aliases: list[tuple[str, str]] | None,
+    job_type_aliases: list[tuple[str, str]] | None = None,
 ) -> None:
     """Configure discovery/reporting aliases loaded from settings files."""
-    global _LANGUAGE_ALIASES, _TOOL_ALIASES
+    global _LANGUAGE_ALIASES, _TOOL_ALIASES, _JOB_TYPE_ALIASES
     _LANGUAGE_ALIASES = language_aliases.copy() if language_aliases else DEFAULT_LANGUAGE_ALIASES.copy()
     _TOOL_ALIASES = tool_aliases.copy() if tool_aliases else []
+    _JOB_TYPE_ALIASES = job_type_aliases.copy() if job_type_aliases else []
 
 
 def _term_regex(term: str) -> str:
@@ -63,6 +66,10 @@ def extract_programming_languages(text: str) -> str:
 
 def extract_tools(text: str) -> str:
     return _extract_alias_values(text, _TOOL_ALIASES)
+
+
+def extract_job_type(text: str) -> str:
+    return _extract_alias_values(text, _JOB_TYPE_ALIASES)
 
 
 # ---------------------------------------------------------------------------
@@ -108,6 +115,11 @@ _RATE_SUFFIX = r"(?:\s*(?:/|per\s+)\s*(?:yr|hr|mo|hour|year|month))?"
 SALARY_PATTERNS = [
     rf"{_MONEY_FIGURE}{_RATE_SUFFIX}\s*(?:to|-|–|—)\s*{_MONEY_FIGURE}{_RATE_SUFFIX}",
     r"\b\d{2,3}[kK]\s*(?:to|-|–|—)\s*\d{2,3}[kK]\b",
+    # A bare thousands-separated range with no "$", e.g. "167,200-209,000" or
+    # "151,000.00 - 204,300.00" — some postings state pay this way instead of
+    # with a currency symbol. Requires at least one comma group per side so
+    # it doesn't fire on unrelated small numbers.
+    r"\b\d{1,3}(?:,\d{3}){1,3}(?:\.\d{2})?\s*(?:to|-|–|—)\s*\d{1,3}(?:,\d{3}){1,3}(?:\.\d{2})?\b",
     r"\$[\d,]{6,}\s*(?:to|-|–|—)\s*\$[\d,]{6,}",
     rf"(?i:Up\s+to)\s+{_MONEY_FIGURE}{_RATE_SUFFIX}",
     rf"{_MONEY_FIGURE}{_RATE_SUFFIX}\s*\+",
@@ -178,6 +190,8 @@ def extract_attributes(text: str, attribute_names: list[str]) -> dict[str, str]:
             result[attr] = extract_programming_languages(text)
         elif "tool" in attr_lower:
             result[attr] = extract_tools(text)
+        elif "type" in attr_lower:
+            result[attr] = extract_job_type(text)
         elif "salary" in attr_lower or "range" in attr_lower:
             result[attr] = extract_salary(text)
         else:

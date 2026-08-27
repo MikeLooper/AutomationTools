@@ -1,6 +1,7 @@
 # Attribute values — one per line.
 
 Job Title
+Job Type
 Company
 Location
 Programming Language

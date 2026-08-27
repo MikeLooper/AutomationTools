@@ -33,8 +33,8 @@ session instead of an anonymous request.
    to `extractors/generic.py`, which applies the same JSON-LD + heuristic
    approach without any site-specific selectors.
 4. **Print a summary**, or **write a report**: a single job-view page prints
-   Job Title, Company, Location, Programming Language, Tools, and Salary
-   Range to the console. A LinkedIn search-results page with a list of
+   Job Title, Company, Location, Job Type, Programming Language, Tools, and
+   Salary Range to the console. A LinkedIn search-results page with a list of
    cards instead clicks through every card (needs the authenticated read —
    see below, since that's real DOM interaction, not just a fetch), scrapes
    the preview pane after each click, and writes an HTML+JSON report to
@@ -106,6 +106,7 @@ python job_scraper.py --url "https://remotive.com/remote-jobs/software-dev/examp
 | `--attributes` | Path to the attribute list. Defaults to `settings/attributes.txt`. |
 | `--programminglanguages` | Path to programming-language aliases. Defaults to `settings/programminglanguages.txt`. |
 | `--tools` | Path to tool aliases. Defaults to `settings/tools.txt`. |
+| `--jobtypes` | Path to job-type aliases. Defaults to `settings/jobtypes.txt`. |
 | `--debug-port` | Remote-debugging port of your dedicated browser profile, if not the default `9222`. |
 
 ## Settings files
@@ -113,12 +114,16 @@ python job_scraper.py --url "https://remotive.com/remote-jobs/software-dev/examp
 Same format as `job-search-python`:
 
 - `settings/attributes.txt` — one attribute name per line.
-- `settings/programminglanguages.txt` / `settings/tools.txt` — one alias per
-  line; `discovery:reporting` if the matched term should be reported under a
+- `settings/programminglanguages.txt` / `settings/tools.txt` / `settings/jobtypes.txt` —
+  one alias per line; `discovery:reporting` if the matched term should be reported under a
   different name (e.g. `Amazon Web Services:AWS`).
 - `settings/targets.txt` / `settings/exclusions.txt` — only used by the
   LinkedIn list-scrape report, for scoring/filtering jobs (`AttributeName=Value`,
-  `AttributeName=Value1 OR Value2`, `Salary Range Includes 200K`). Empty by
+  `AttributeName=Value1 OR Value2`, `Salary Range Includes 200K`). `targets.txt`
+  additionally supports `Salary Range Is Greater Than <amount>`, `Salary Range
+  Is Less Than <amount>`, and `Salary Range Equals <amount>`, and any of the
+  four Salary Range comparisons can be OR'd together on one line (e.g.
+  `Salary Range Includes 150K OR Is Greater Than 200K`). Empty by
   default, which scores every job 100% / recommended — add rules here the
   same way you would in `job-search-python` if you want to filter the report
   down. `--match-pct` (default `75`) sets the recommendation threshold.

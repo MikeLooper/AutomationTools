@@ -26,6 +26,7 @@ from bs4 import BeautifulSoup
 from extractors.base import (
     apply_overrides,
     extract_attributes,
+    extract_job_type,
     extract_jsonld_jobposting,
     extract_labeled_salary_sentence,
     extract_salary,
@@ -81,11 +82,19 @@ def _backup_search_scope(full_text: str, description: str) -> str:
     excluding whatever trails the description (related-jobs sidebars,
     footers) — the likeliest source of an unrelated dollar figure winning
     just by appearing first in a whole-page search.
+
+    Requires a real, located `description` to anchor that end boundary.
+    Without one there's nothing to bound the scope by, so this must return
+    "" rather than the full page — searching the whole page for a dollar
+    figure is exactly the failure mode this function exists to avoid (it
+    would just as happily match LinkedIn's own estimated-pay insight badge,
+    an applied search-filter chip, or a "Similar jobs" teaser as the real,
+    employer-stated salary).
     """
     if not description:
-        return full_text
+        return ""
     end = full_text.find(description)
-    return full_text[: end + len(description)] if end != -1 else full_text
+    return full_text[: end + len(description)] if end != -1 else ""
 
 
 def _location_near(text: str, title: str, company: str) -> str:
@@ -110,28 +119,61 @@ def parse(url: str, html: str, attributes: list[str]) -> dict[str, Any]:
     title = title_tag_title or _title_from_h1(soup) or jsonld.get("title", "")
 
     full_text = html_to_text(html)
-    description = find_section_text(soup, "About the job") or jsonld.get("description") or full_text
+    section_text = find_section_text(soup, "About the job") or jsonld.get("description", "")
+    # Only a genuinely located "About the job" section (or JSON-LD) is safe to
+    # run the salary regex against. `full_text` is used below as a fallback
+    # for the *other* attributes (title/company/languages/tools all have
+    # their own extra signals or are low-risk keyword lookups), but salary
+    # must never be searched for in it: extract_salary()/_first_match just
+    # return the first pattern match found anywhere in the given text, so
+    # feeding it the whole page would let nav chrome, an applied search
+    # filter, a "Similar jobs" teaser, or LinkedIn's own estimated-pay
+    # insight badge win over the employer's real stated salary purely by
+    # appearing earlier on the page.
+    description = section_text or full_text
     attrs = extract_attributes(description, attributes)
+    if not section_text:
+        for attr in attrs:
+            if "salary" in attr.lower() or "range" in attr.lower():
+                attrs[attr] = ""
 
     # Title/company from page chrome are more reliable than the naive
     # first-line/regex heuristics extract_attributes just ran, so they win
     # outright. Location/salary are the opposite: the description itself
     # (already checked above) often states them explicitly and more
     # precisely than a structural guess can, so those only fill gaps.
-    apply_overrides(attrs, {"title": title, "company": company})
+    #
+    # Job type ("Full-time", "On-site", "Hybrid", "Remote", ...) is shown as
+    # job-insight pills in the page's top card, not inside the "About the
+    # job" body, so extract_attributes() above — run against `description`,
+    # which only covers that body — routinely finds nothing even when the
+    # page clearly states it. extract_job_type() just checks whether each
+    # known alias term appears anywhere in the given text, with no
+    # first-match-wins tie-breaking, so it needs a scope wide enough to
+    # reach those pills — but NOT the whole page: `full_text` also holds
+    # "Similar jobs"/"People also viewed" sidebar teasers and footer chrome
+    # for OTHER postings, and a keyword like "Remote" appearing there is
+    # every bit as much a false positive for *this* job as an unrelated
+    # dollar figure would be for salary. `backup_scope` (top of page through
+    # end of the description) reaches the top-card pills while excluding
+    # that trailing, other-jobs content.
+    backup_scope = _backup_search_scope(full_text, section_text)
+    apply_overrides(attrs, {"title": title, "company": company, "type": extract_job_type(backup_scope)})
 
-    backup_scope = _backup_search_scope(full_text, description)
     apply_overrides(attrs, {
         "location": jsonld.get("location", "") or _location_near(full_text, title, company),
         # extract_attributes() above already tried the general SALARY_PATTERNS
-        # and extract_labeled_salary_sentence() against `description` alone.
-        # If that's still empty, widen the search to `backup_scope`: LinkedIn
-        # sometimes states salary in the top-card metadata line, which sits
-        # before the "About the job" heading and outside `description`'s
-        # scope entirely.
+        # and extract_labeled_salary_sentence() against `section_text` alone
+        # (when it was found). If that's still empty, widen the search to
+        # `backup_scope`: LinkedIn sometimes states salary in the top-card
+        # metadata line, which sits before the "About the job" heading and
+        # outside `section_text`'s scope entirely. Both fall back to "" (not
+        # full_text) when `section_text` wasn't found, so an unlocated
+        # description never lets an unrelated page-wide dollar figure stand
+        # in for the real salary.
         "salary": (
             jsonld.get("salary", "")
-            or extract_labeled_salary_sentence(description)
+            or (extract_labeled_salary_sentence(section_text) if section_text else "")
             or extract_salary(backup_scope)
             or extract_labeled_salary_sentence(backup_scope)
         ),

@@ -37,6 +37,7 @@ REPORT_BASE = BASE_DIR / "reports"
 DEFAULT_ATTRIBUTES_PATH = SETTINGS_DIR / "attributes.txt"
 DEFAULT_PROGRAMMING_LANGUAGES_PATH = SETTINGS_DIR / "programminglanguages.txt"
 DEFAULT_TOOLS_PATH = SETTINGS_DIR / "tools.txt"
+DEFAULT_JOB_TYPES_PATH = SETTINGS_DIR / "jobtypes.txt"
 DEFAULT_TARGETS_PATH = SETTINGS_DIR / "targets.txt"
 DEFAULT_EXCLUSIONS_PATH = SETTINGS_DIR / "exclusions.txt"
 DEFAULT_MATCH_PCT = 75
@@ -131,6 +132,7 @@ def main() -> None:
     parser.add_argument("--attributes", default=str(DEFAULT_ATTRIBUTES_PATH))
     parser.add_argument("--programminglanguages", default=str(DEFAULT_PROGRAMMING_LANGUAGES_PATH))
     parser.add_argument("--tools", default=str(DEFAULT_TOOLS_PATH))
+    parser.add_argument("--jobtypes", default=str(DEFAULT_JOB_TYPES_PATH))
     parser.add_argument("--targets", default=str(DEFAULT_TARGETS_PATH))
     parser.add_argument("--exclusions", default=str(DEFAULT_EXCLUSIONS_PATH))
     parser.add_argument("--match-pct", type=int, default=DEFAULT_MATCH_PCT)
@@ -144,6 +146,7 @@ def main() -> None:
     configure_extraction_aliases(
         load_alias_lines(args.programminglanguages),
         load_alias_lines(args.tools),
+        load_alias_lines(args.jobtypes),
     )
 
     window_title = ""
