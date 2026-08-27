@@ -1,0 +1,3 @@
+# Exclusion rules — one per line, same format as job-search-python:
+#   AttributeName=Value OR Value2
+# Left empty by default (no exclusions applied).

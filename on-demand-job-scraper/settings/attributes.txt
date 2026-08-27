@@ -1,0 +1,8 @@
+# Attribute values — one per line.
+
+Job Title
+Company
+Location
+Programming Language
+Tools
+Salary Range
