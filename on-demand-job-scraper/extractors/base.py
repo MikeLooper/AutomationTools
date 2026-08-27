@@ -112,7 +112,11 @@ _MONEY_FIGURE = rf"\${_MONEY_DIGITS}(?:\.\d+)?[kK]?"
 # the whole pattern misses a range whose bounds each carry one.
 _RATE_SUFFIX = r"(?:\s*(?:/|per\s+)\s*(?:yr|hr|mo|hour|year|month))?"
 
-SALARY_PATTERNS = [
+# Two-sided ranges only — both bounds are pinned down, so a match is a high-
+# confidence signal that this is an actual stated salary rather than some
+# unrelated dollar figure. Safe to search a wide scope with (see
+# extract_salary_range below).
+SALARY_RANGE_PATTERNS = [
     rf"{_MONEY_FIGURE}{_RATE_SUFFIX}\s*(?:to|-|–|—)\s*{_MONEY_FIGURE}{_RATE_SUFFIX}",
     r"\b\d{2,3}[kK]\s*(?:to|-|–|—)\s*\d{2,3}[kK]\b",
     # A bare thousands-separated range with no "$", e.g. "167,200-209,000" or
@@ -121,10 +125,20 @@ SALARY_PATTERNS = [
     # it doesn't fire on unrelated small numbers.
     r"\b\d{1,3}(?:,\d{3}){1,3}(?:\.\d{2})?\s*(?:to|-|–|—)\s*\d{1,3}(?:,\d{3}){1,3}(?:\.\d{2})?\b",
     r"\$[\d,]{6,}\s*(?:to|-|–|—)\s*\$[\d,]{6,}",
+]
+
+# Single-sided/single-value phrasings. Much easier to trip on an unrelated
+# dollar mention elsewhere in the text (a benefit, a stipend, a discount) —
+# e.g. "$X+" matches any dollar figure at all followed by a "+" — so these
+# are only safe to search within a scope already known to be about this
+# job's own compensation, never a wide/whole-page one.
+SALARY_SINGLE_VALUE_PATTERNS = [
     rf"(?i:Up\s+to)\s+{_MONEY_FIGURE}{_RATE_SUFFIX}",
     rf"{_MONEY_FIGURE}{_RATE_SUFFIX}\s*\+",
     rf"(?i:Salary)[:\s]+({_MONEY_FIGURE}{_RATE_SUFFIX}(?:\s*(?:to|-|–)\s*{_MONEY_FIGURE}{_RATE_SUFFIX})?)",
 ]
+
+SALARY_PATTERNS = SALARY_RANGE_PATTERNS + SALARY_SINGLE_VALUE_PATTERNS
 
 # Fallback for a "Salary:" field whose value is a full descriptive sentence
 # (e.g. "Salary: $100,000-$140,000 annually, depending on experience")
@@ -166,6 +180,14 @@ def extract_location(text: str) -> str:
 
 def extract_salary(text: str) -> str:
     return _first_match(text, SALARY_PATTERNS)
+
+
+def extract_salary_range(text: str) -> str:
+    """Like extract_salary(), but only the high-confidence two-sided-range
+    patterns — see SALARY_RANGE_PATTERNS. Safe to call on a wider scope than
+    extract_salary() itself, since an unrelated dollar figure elsewhere on a
+    page is very unlikely to also form a well-shaped range."""
+    return _first_match(text, SALARY_RANGE_PATTERNS)
 
 
 def extract_labeled_salary_sentence(text: str) -> str:

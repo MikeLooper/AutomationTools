@@ -30,6 +30,7 @@ from extractors.base import (
     extract_jsonld_jobposting,
     extract_labeled_salary_sentence,
     extract_salary,
+    extract_salary_range,
     find_section_text,
     html_to_text,
 )
@@ -97,6 +98,42 @@ def _backup_search_scope(full_text: str, description: str) -> str:
     return full_text[: end + len(description)] if end != -1 else ""
 
 
+def _heading_tag(soup: BeautifulSoup, heading_text: str):
+    """Same heading lookup find_section_text uses, exposed as the tag itself."""
+    for tag in soup.find_all(["h1", "h2", "h3", "h4", "strong", "span", "div"]):
+        if tag.get_text(strip=True).casefold() == heading_text.casefold():
+            return tag
+    return None
+
+
+def _job_posting_scope(soup: BeautifulSoup) -> str:
+    """
+    Job-insight pills (Full-time, On-site, ...) and a "Job details" panel
+    (Seniority level, Employment type, ...) can each render either before or
+    after the "About the job" body depending on a given posting's layout —
+    one job had them in the top card *before* the description, another had
+    them in a details panel *after* it. A positional window anchored to the
+    description's start or end (like `_backup_search_scope`) only ever
+    catches one of those, so it's the wrong tool for job type specifically.
+
+    Instead, find the smallest DOM container that holds *both* the job
+    title (<h1>) and the "About the job" heading — i.e. the actual
+    job-posting block — and use all of its text regardless of internal
+    ordering. A "Similar jobs"/"People also viewed" rail is a structurally
+    separate block (not nested with the title and description together), so
+    it's excluded by this no matter where it falls in source order.
+    """
+    title_tag = soup.find("h1")
+    about_tag = _heading_tag(soup, "About the job")
+    if title_tag is None or about_tag is None:
+        return ""
+    about_ancestor_ids = {id(parent) for parent in about_tag.parents}
+    for ancestor in title_tag.parents:
+        if id(ancestor) in about_ancestor_ids:
+            return ancestor.get_text("\n", strip=True)
+    return ""
+
+
 def _location_near(text: str, title: str, company: str) -> str:
     """
     LinkedIn's job header renders as "{Company} {Title} {Location} · {posted} · ...".
@@ -143,41 +180,51 @@ def parse(url: str, html: str, attributes: list[str]) -> dict[str, Any]:
     # (already checked above) often states them explicitly and more
     # precisely than a structural guess can, so those only fill gaps.
     #
-    # Job type ("Full-time", "On-site", "Hybrid", "Remote", ...) is shown as
-    # job-insight pills in the page's top card, not inside the "About the
-    # job" body, so extract_attributes() above — run against `description`,
-    # which only covers that body — routinely finds nothing even when the
-    # page clearly states it. extract_job_type() just checks whether each
-    # known alias term appears anywhere in the given text, with no
-    # first-match-wins tie-breaking, so it needs a scope wide enough to
-    # reach those pills — but NOT the whole page: `full_text` also holds
-    # "Similar jobs"/"People also viewed" sidebar teasers and footer chrome
-    # for OTHER postings, and a keyword like "Remote" appearing there is
-    # every bit as much a false positive for *this* job as an unrelated
-    # dollar figure would be for salary. `backup_scope` (top of page through
-    # end of the description) reaches the top-card pills while excluding
-    # that trailing, other-jobs content.
+    # Job type ("Full-time", "On-site", "Hybrid", "Remote", ...) is shown
+    # either as job-insight pills in the top card (before "About the job")
+    # or in a "Job details" panel below the description (after it) —
+    # LinkedIn places it differently across postings — so extract_attributes()
+    # above, run only against `description`, routinely finds nothing.
+    # extract_job_type() just checks whether each known alias term appears
+    # anywhere in the given text, with no first-match-wins tie-breaking, so
+    # it needs a scope wide enough to reach it on either side — but not the
+    # whole page: `full_text` also holds "Similar jobs"/"People also viewed"
+    # sidebar teasers for OTHER postings, and a keyword like "Remote"
+    # appearing there is as much a false positive as an unrelated dollar
+    # figure would be for salary. `_job_posting_scope` (the DOM container
+    # shared by the title and the description) reaches both placements while
+    # excluding that sibling, other-jobs content; `backup_scope` below is a
+    # narrower fallback for when that structural lookup finds nothing.
     backup_scope = _backup_search_scope(full_text, section_text)
-    apply_overrides(attrs, {"title": title, "company": company, "type": extract_job_type(backup_scope)})
+    posting_scope = _job_posting_scope(soup) or backup_scope
+    apply_overrides(attrs, {"title": title, "company": company, "type": extract_job_type(posting_scope)})
 
     apply_overrides(attrs, {
         "location": jsonld.get("location", "") or _location_near(full_text, title, company),
-        # extract_attributes() above already tried the general SALARY_PATTERNS
-        # and extract_labeled_salary_sentence() against `section_text` alone
-        # (when it was found). If that's still empty, widen the search to
-        # `backup_scope`: LinkedIn sometimes states salary in the top-card
-        # metadata line, which sits before the "About the job" heading and
-        # outside `section_text`'s scope entirely. Both fall back to "" (not
-        # full_text) when `section_text` wasn't found, so an unlocated
-        # description never lets an unrelated page-wide dollar figure stand
-        # in for the real salary.
-        "salary": (
-            jsonld.get("salary", "")
-            or (extract_labeled_salary_sentence(section_text) if section_text else "")
-            or extract_salary(backup_scope)
-            or extract_labeled_salary_sentence(backup_scope)
-        ),
     }, only_if_missing=True)
+
+    # Salary is shown as a page-chrome pill just like job type — sometimes
+    # in the top card before "About the job", sometimes in a details panel
+    # after it — so it needs that same wide `posting_scope` to be found at
+    # all. But unlike job type, extract_salary()'s weaker fallback patterns
+    # (e.g. "$X+") match *any* incidental dollar figure, so extract_attributes()
+    # above can end up setting attrs["Salary Range"] to something wrong from
+    # an unrelated mention inside the body (a stipend, a discount, ...)
+    # *before* this code ever runs. Gating on "only fill in if still empty"
+    # (as the rest of this override does) would then leave that wrong value
+    # in place forever, since it's already non-empty. So the high-confidence,
+    # two-sided range check runs first and — if it finds a real range in the
+    # wider scope — always wins outright over whatever the initial pass
+    # guessed. Only when no range exists anywhere do the narrower/weaker
+    # signals get a turn, same priority as before.
+    salary = (
+        jsonld.get("salary", "")
+        or extract_salary_range(posting_scope)
+        or (extract_labeled_salary_sentence(section_text) if section_text else "")
+        or extract_salary(backup_scope)
+        or extract_labeled_salary_sentence(backup_scope)
+    )
+    apply_overrides(attrs, {"salary": salary})
 
     note = None
     lowered = html.lower()
