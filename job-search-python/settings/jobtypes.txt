@@ -1,0 +1,10 @@
+# Job Type rules — one per line.
+
+Contract
+Full Time
+Full-time
+Hybrid
+On-site
+Permanent
+Remote
+Temporary

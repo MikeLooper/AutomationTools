@@ -47,11 +47,40 @@ DEFAULT_LANGUAGE_ALIASES: list[tuple[str, str]] = [
 
 _LANGUAGE_ALIASES: list[tuple[str, str]] = DEFAULT_LANGUAGE_ALIASES.copy()
 _TOOL_ALIASES: list[tuple[str, str]] = []
+_JOB_TYPE_ALIASES: list[tuple[str, str]] = []
 
 # Common job-title patterns
 TITLE_PATTERNS = [
     r"(?:Job\s+Title|Position|Role)[:\s]+([^\n|]+)",
 ]
+
+US_STATE_CODES = (
+    "AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|"
+    "MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC"
+)
+
+# Labeled-field patterns require a colon and a line start, not just trailing
+# whitespace: "Location"/"Company" show up constantly in ordinary page chrome
+# and boilerplate, so matching on whitespace alone grabs the middle of an
+# unrelated sentence. Anchoring to "^Label:" is what a real field line
+# actually looks like.
+COMPANY_PATTERNS = [
+    r"(?im:^\s*(?:Company|Employer|Organization)\s*:\s*([^\n|,]{2,80}))",
+    r"\bat\s+([A-Z][\w&.,'\-]*(?:\s+[A-Z][\w&.,'\-]*){0,4})\s*(?:\n|-|–|\|)",
+]
+LOCATION_PATTERNS = [
+    r"(?im:^\s*Location\s*:\s*([^\n|]{2,80}))",
+    rf"\b([A-Z][a-zA-Z. ]+,\s*(?:{US_STATE_CODES})\b(?:\s*\d{{5}})?)",
+    r"\b(Remote(?:\s*[-,]\s*[A-Za-z ]+)?)\b",
+]
+
+
+def _first_match(text: str, patterns: list[str]) -> str:
+    for pat in patterns:
+        m = re.search(pat, text)
+        if m:
+            return m.group(1 if m.groups() else 0).strip()
+    return ""
 
 
 def extract_job_title(text: str) -> str:
@@ -68,16 +97,29 @@ def extract_job_title(text: str) -> str:
     return ""
 
 
+def extract_company(text: str) -> str:
+    """Try to pull a company name from a labeled field or 'at <Company>' phrasing."""
+    return _first_match(text, COMPANY_PATTERNS)
+
+
+def extract_location(text: str) -> str:
+    """Try to pull a location from a labeled field, a 'City, ST' pattern, or 'Remote'."""
+    return _first_match(text, LOCATION_PATTERNS)
+
+
 def configure_extraction_aliases(
     language_aliases: list[tuple[str, str]] | None,
     tool_aliases: list[tuple[str, str]] | None,
+    job_type_aliases: list[tuple[str, str]] | None = None,
 ) -> None:
     """Configure discovery/reporting aliases loaded from settings files."""
     global _LANGUAGE_ALIASES
     global _TOOL_ALIASES
+    global _JOB_TYPE_ALIASES
 
     _LANGUAGE_ALIASES = language_aliases.copy() if language_aliases else DEFAULT_LANGUAGE_ALIASES.copy()
     _TOOL_ALIASES = tool_aliases.copy() if tool_aliases else []
+    _JOB_TYPE_ALIASES = job_type_aliases.copy() if job_type_aliases else []
 
 
 def _term_regex(term: str) -> str:
@@ -111,6 +153,11 @@ def extract_programming_languages(text: str) -> str:
 def extract_tools(text: str) -> str:
     """Return a comma-separated list of configured tools."""
     return _extract_alias_values(text, _TOOL_ALIASES)
+
+
+def extract_job_type(text: str) -> str:
+    """Return a comma-separated list of configured job types (see settings/jobtypes.txt)."""
+    return _extract_alias_values(text, _JOB_TYPE_ALIASES)
 
 
 def extract_salary(text: str) -> str:
@@ -151,10 +198,16 @@ def extract_attributes(text: str, attribute_names: list[str]) -> dict[str, str]:
         attr_lower = attr.lower()
         if "title" in attr_lower:
             result[attr] = extract_job_title(text)
+        elif "compan" in attr_lower or "employer" in attr_lower:
+            result[attr] = extract_company(text)
+        elif "location" in attr_lower:
+            result[attr] = extract_location(text)
         elif "language" in attr_lower or "programming" in attr_lower:
             result[attr] = extract_programming_languages(text)
         elif "tool" in attr_lower:
             result[attr] = extract_tools(text)
+        elif "type" in attr_lower:
+            result[attr] = extract_job_type(text)
         elif "salary" in attr_lower or "range" in attr_lower:
             result[attr] = extract_salary(text)
         else:

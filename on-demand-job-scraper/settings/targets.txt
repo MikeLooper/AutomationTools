@@ -1,0 +1,15 @@
+# Target rules for scoring — one per line. Same format as job-search-python:
+#   AttributeName=Value
+#   AttributeName=Value1 OR Value2
+#   Salary Range Includes <amount>
+#   Salary Range Is Greater Than <amount>
+#   Salary Range Is Less Than <amount>
+#   Salary Range Equals <amount>
+#   Salary Range <Comparison> <amount> OR <Comparison> <amount> ...
+#
+# Left empty by default: with no targets, every job scores 100% and is
+# recommended, so a full run of the list scraper just gives you every job's
+# details without needing any configuration first.
+
+Programming Language=C# OR .NET
+Salary Range Includes 200K OR Is Greater Than 200K

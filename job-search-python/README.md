@@ -21,6 +21,9 @@ pip install -r requirements.txt
 python job-search
 ```
 
+At startup, the app prints one log line with the effective runtime parameters, including
+which URL source is being used (`--url` or `--urls`) and all active file/threshold settings.
+
 The script defaults to:
 
 - `settings/urls.txt`
@@ -29,6 +32,8 @@ The script defaults to:
 - `settings/exclusions.txt`
 - `settings/programminglanguages.txt`
 - `settings/tools.txt`
+- `settings/jobtypes.txt`
+- `--url` not set (uses `--urls` file)
 - `--match-pct 75`
 - `--max-jobs-per-url 0` (no limit)
 
@@ -42,8 +47,15 @@ python job-search \
   --exclusions settings/exclusions.txt \
   --programminglanguages settings/programminglanguages.txt \
   --tools settings/tools.txt \
+  --jobtypes settings/jobtypes.txt \
   --match-pct 75 \
   --max-jobs-per-url 25
+```
+
+Process only one URL (and ignore `--urls` file input):
+
+```bash
+python job-search --url "https://remotive.com/remote-jobs/software-dev"
 ```
 
 ### Arguments
@@ -51,11 +63,13 @@ python job-search \
 | Argument | Description |
 |----------|-------------|
 | `--urls` | Path to a file containing one search URL per line. Defaults to `settings/urls.txt` |
-| `--attributes` | Path to a file listing the attributes to extract (e.g. `Job Title`, `Programming Language`, `Tools`, `Salary Range`). Defaults to `settings/attributes.txt` |
+| `--url` | Single search URL to process. When provided, this overrides `--urls` and only this URL is used. |
+| `--attributes` | Path to a file listing the attributes to extract (e.g. `Job Title`, `Job Type`, `Company`, `Location`, `Programming Language`, `Tools`, `Salary Range`). Defaults to `settings/attributes.txt` |
 | `--targets` | Path to a file listing target attribute values (e.g. `Job Title=Solutions Architect`). Defaults to `settings/targets.txt` |
 | `--exclusions` | Path to a file listing exclusion rules. Defaults to `settings/exclusions.txt` |
 | `--programminglanguages` | Path to programming-language aliases used for discovery/reporting. Defaults to `settings/programminglanguages.txt` |
 | `--tools` | Path to tool aliases used for discovery/reporting. Defaults to `settings/tools.txt` |
+| `--jobtypes` | Path to job type aliases used for discovery/reporting. Defaults to `settings/jobtypes.txt` |
 | `--match-pct` | Integer 0–100. Jobs scoring ≥ this value are flagged as **recommended**. Defaults to `75` |
 | `--max-jobs-per-url` | Integer ≥ 0. Limits how many extracted jobs are processed for each URL. `0` means no limit. Defaults to `0` |
 
@@ -74,6 +88,9 @@ One attribute name per line.
 
 ```
 Job Title
+Job Type
+Company
+Location
 Programming Language
 Tools
 Salary Range
@@ -87,12 +104,18 @@ One target rule per line. Supported operators:
 | `Job Title=Solutions Architect` | Exact (case-insensitive) match |
 | `Job Title=Solutions Architect OR Software Engineer` | Match if any listed value matches |
 | `Salary Range Includes 200K` | The discovered salary range must span $200,000 (i.e. min ≤ 200K ≤ max) |
+| `Salary Range Is Greater Than 200K` | Any bound of the discovered salary range must exceed $200,000 |
+| `Salary Range Is Less Than 100K` | Any bound of the discovered salary range must be below $100,000 |
+| `Salary Range Equals 200K` | One of the discovered salary range's stated figures must equal $200,000 exactly |
 | `Programming Language=Python` | Exact match |
+
+Any of the four Salary Range comparisons can be OR'd together on one line, e.g.
+`Salary Range Includes 200K OR Is Greater Than 250K`.
 
 ```
 Job Title=Solutions Architect
 Programming Language=Python OR Java OR C#
-Salary Range Includes 200K
+Salary Range Includes 200K OR Is Greater Than 250K
 ```
 
 ### settings/exclusions.txt
@@ -139,6 +162,23 @@ Model Context Protocol:MCP
 PostgreSQL
 ```
 
+### settings/jobtypes.txt
+One alias per line. These values are the source of truth for `Job Type` extraction.
+
+- No colon: the same value is used for discovery and reporting.
+- With colon: `discovery:reporting`.
+
+```
+Contract
+Full Time
+Full-time
+Hybrid
+On-site
+Permanent
+Remote
+Temporary
+```
+
 ## Output
 
 Reports are written to:
@@ -154,8 +194,20 @@ Each run produces:
 `report.json` also includes:
 - `exclusion_warnings` — ignored exclusion lines and reasons
 - Per-job `excluded` and `exclusion_details`
+- `parameters` — all CLI parameters with description, value, and whether each was explicitly supplied
+- `effective_parameters` — resolved runtime settings actually used by the run
 
 After the files are written, the script opens `report.html` in your browser.
+
+`report.html` includes:
+- Top summary bar (URLs, jobs, recommended)
+- Recommended follow-up section
+- URL-by-URL job details
+- Run Parameters section (at the bottom)
+- Run Summary section (at the bottom) with:
+  - Number of URLs checked
+  - Number of jobs checked
+  - Match-score distribution (count of jobs for each score found)
 
 ### Exclusion Behavior
 
@@ -169,10 +221,10 @@ After the files are written, the script opens `report.html` in your browser.
 |------|-------------------|
 | Connecting Colorado | Selenium - clicks each job card in the left panel and reads details from the right pane |
 | Dice | Selenium — clicks each job card in the left panel |
-| Glassdoor | Selenium — clicks each job card, handles sign-in wall |
 | Greenhouse | Selenium — standard job board |
 | LinkedIn | Selenium — clicks each job card (login may be required for full details) |
 | Remotive | requests + BeautifulSoup (static HTML) |
+| TopResume (Careerio) | requests + BeautifulSoup with Selenium fallback for dynamic job-search pages |
 
 ## Alternative AI Tools
 
@@ -184,4 +236,4 @@ For richer LLM-based attribute extraction, consider:
 | **Anthropic Claude 3.5 Sonnet** | Same pattern — pipe job text into a Claude prompt asking for structured extraction. Excellent at reasoning about salary ranges stated in non-standard prose. |
 | **LangChain + any LLM** | Use LangChain's `WebBaseLoader` + an extraction chain to scrape and parse in one pipeline. Simplifies site-specific handling. |
 | **Playwright + AI SDK** | Microsoft's Playwright MCP server can be driven by an LLM agent to handle complex JS-heavy pages better than Selenium. |
-| **Bright Data / ScrapingBee** | Proxy-based scraping APIs that handle bot-detection on LinkedIn / Glassdoor, reducing need for manual Selenium cookie handling. |
+| **Bright Data / ScrapingBee** | Proxy-based scraping APIs that handle bot-detection on LinkedIn, reducing need for manual Selenium cookie handling. |

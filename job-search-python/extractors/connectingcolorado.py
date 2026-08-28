@@ -134,6 +134,33 @@ class ConnectingColoradoExtractor(BaseExtractor):
             return text.splitlines()[0].strip()
         return ""
 
+    def _read_min_max_salary_fallback(self, driver: webdriver.Chrome) -> str:
+        """Read salary from field-label blocks when free-form parsing misses it."""
+        def _read_label_value(label: str) -> str:
+            try:
+                value_el = driver.find_element(
+                    By.XPATH,
+                    (
+                        "//p[contains(@class, 'field-label') and "
+                        f"normalize-space(.)='{label}']"
+                        "/following-sibling::p[1]"
+                    ),
+                )
+                return self._safe_text(value_el)
+            except Exception:
+                return ""
+
+        min_salary = _read_label_value("Minimum Salary")
+        max_salary = _read_label_value("Maximum Salary")
+
+        if min_salary and max_salary:
+            return f"{min_salary} - {max_salary}"
+        if min_salary:
+            return min_salary
+        if max_salary:
+            return max_salary
+        return ""
+
     @staticmethod
     def _clean_title(title: str) -> str:
         value = (title or "").strip()
@@ -169,6 +196,12 @@ class ConnectingColoradoExtractor(BaseExtractor):
         if not cards:
             detail_text = self._read_detail_text(driver)
             attrs = extract_attributes(detail_text, attributes)
+            fallback_salary = self._read_min_max_salary_fallback(driver)
+            if fallback_salary:
+                for key, value in attrs.items():
+                    key_lower = key.lower()
+                    if ("salary" in key_lower or "range" in key_lower) and not value:
+                        attrs[key] = fallback_salary
             jobs.append({"job_url": url, "attributes": attrs})
             return jobs
 
@@ -192,6 +225,12 @@ class ConnectingColoradoExtractor(BaseExtractor):
 
                 detail_text = self._read_detail_text(driver)
                 attrs = extract_attributes(detail_text, attributes)
+                fallback_salary = self._read_min_max_salary_fallback(driver)
+                if fallback_salary:
+                    for key, value in attrs.items():
+                        key_lower = key.lower()
+                        if ("salary" in key_lower or "range" in key_lower) and not value:
+                            attrs[key] = fallback_salary
 
                 detail_title = self._clean_title(self._read_detail_title(driver))
                 title = detail_title or card_title
