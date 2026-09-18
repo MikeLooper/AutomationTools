@@ -38,6 +38,7 @@ DEFAULT_ATTRIBUTES_PATH = SETTINGS_DIR / "attributes.txt"
 DEFAULT_PROGRAMMING_LANGUAGES_PATH = SETTINGS_DIR / "programminglanguages.txt"
 DEFAULT_TOOLS_PATH = SETTINGS_DIR / "tools.txt"
 DEFAULT_JOB_TYPES_PATH = SETTINGS_DIR / "jobtypes.txt"
+DEFAULT_CONDITIONS_PATH = SETTINGS_DIR / "conditions.txt"
 DEFAULT_TARGETS_PATH = SETTINGS_DIR / "targets.txt"
 DEFAULT_EXCLUSIONS_PATH = SETTINGS_DIR / "exclusions.txt"
 DEFAULT_MATCH_PCT = 75
@@ -91,10 +92,7 @@ def write_list_report(url: str, jobs: list[dict], match_pct: int, targets_path: 
     for job in jobs:
         score, details = compute_match(job["attributes"], targets)
         preliminary_recommended = score >= match_pct
-        if preliminary_recommended:
-            excluded, exclusion_details = apply_exclusions(job["attributes"], exclusion_rules)
-        else:
-            excluded, exclusion_details = False, []
+        excluded, exclusion_details = apply_exclusions(job["attributes"], exclusion_rules)
         job["match_score"] = score
         job["match_details"] = details
         job["excluded"] = excluded
@@ -133,6 +131,7 @@ def main() -> None:
     parser.add_argument("--programminglanguages", default=str(DEFAULT_PROGRAMMING_LANGUAGES_PATH))
     parser.add_argument("--tools", default=str(DEFAULT_TOOLS_PATH))
     parser.add_argument("--jobtypes", default=str(DEFAULT_JOB_TYPES_PATH))
+    parser.add_argument("--conditions", default=str(DEFAULT_CONDITIONS_PATH))
     parser.add_argument("--targets", default=str(DEFAULT_TARGETS_PATH))
     parser.add_argument("--exclusions", default=str(DEFAULT_EXCLUSIONS_PATH))
     parser.add_argument("--match-pct", type=int, default=DEFAULT_MATCH_PCT)
@@ -147,6 +146,7 @@ def main() -> None:
         load_alias_lines(args.programminglanguages),
         load_alias_lines(args.tools),
         load_alias_lines(args.jobtypes),
+        load_alias_lines(args.conditions),
     )
 
     window_title = ""
@@ -176,23 +176,24 @@ def main() -> None:
         if port is not None:
             jobs = scrape_all_cards(port, module, attributes)
 
-    if jobs:
-        html_path = write_list_report(url, jobs, args.match_pct, args.targets, args.exclusions)
-        if not open_in_browser(port, html_path):
-            os.startfile(str(html_path))
-        print(f"\nReport written to: {html_path.parent}")
-        print(f"  HTML: {html_path.name}")
-        print(f"  JSON: {(html_path.parent / 'report.json').name}")
-        return
+    if not jobs:
+        try:
+            fetch_result = fetch(url, debug_port=args.debug_port)
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
 
-    try:
-        fetch_result = fetch(url, debug_port=args.debug_port)
-    except RuntimeError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        result = module.parse(url, fetch_result.html, attributes)
+        print_summary(result, window_title, fetch_result.method, fetch_result.warning)
+        jobs = [result]
+        port = find_debug_port(extra_ports=[args.debug_port] if args.debug_port else None)
 
-    result = module.parse(url, fetch_result.html, attributes)
-    print_summary(result, window_title, fetch_result.method, fetch_result.warning)
+    html_path = write_list_report(url, jobs, args.match_pct, args.targets, args.exclusions)
+    if port is None or not open_in_browser(port, html_path):
+        os.startfile(str(html_path))
+    print(f"\nReport written to: {html_path.parent}")
+    print(f"  HTML: {html_path.name}")
+    print(f"  JSON: {(html_path.parent / 'report.json').name}")
 
 
 if __name__ == "__main__":

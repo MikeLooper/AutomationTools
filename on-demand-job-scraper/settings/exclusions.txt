@@ -3,3 +3,4 @@
 # Left empty by default (no exclusions applied).
 
 Job Title=Full Stack OR Front End
+Condition=Security Clearance
