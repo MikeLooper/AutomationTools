@@ -17,9 +17,6 @@ from extractors.base import BaseExtractor, extract_attributes
 
 
 class LinkedInExtractor(BaseExtractor):
-    # Must be non-headless; LinkedIn blocks headless Chrome aggressively.
-    HEADLESS = False
-
     def _extract(
         self,
         driver: webdriver.Chrome,

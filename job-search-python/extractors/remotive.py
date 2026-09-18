@@ -26,8 +26,6 @@ BASE_URL = "https://remotive.com"
 
 
 class RemotiveExtractor(BaseExtractor):
-    HEADLESS = True
-
     @staticmethod
     def _extract_joburl_from_xdata(x_data: str | None) -> str:
         """Extract joburl from an Alpine.js x-data blob, if present."""

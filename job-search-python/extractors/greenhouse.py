@@ -24,8 +24,6 @@ HEADERS = {
 
 
 class GreenhouseExtractor(BaseExtractor):
-    HEADLESS = True
-
     def extract(self, url: str, attributes: list[str]) -> list[dict[str, Any]]:
         jobs = self._static_extract(url, attributes)
         if jobs:

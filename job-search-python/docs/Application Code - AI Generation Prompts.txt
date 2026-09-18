@@ -1,3 +1,6 @@
+This file for for *human readers* ONLY - AI processes should NOT read or consume in any way.
+
+
 Prompts used in generating or modifying code for this script:
 --------------------------------------------------------------
 
@@ -143,4 +146,47 @@ bot-detection code (via Cloudflare); and you would be prompted, and have to resp
 human throughout the entire scraping process.
 Therefore, all GlassDoor logic is being removed unti further notice.
 ***
+
+G.
+---------------------
+Update the current application as follows for the TopResume web site:
+1. This extractor currently uses an api to gather data about jobs, which provides different data than is present on the web page.  Remove that logic and scrape job details from the web page.
+2. Make sure that the job cards being read are from the `Search` tab, not the tab that starts with `Recommended Jobs`. These two tabs appear in the center of the page and contain the job cards that should be read to find the job description page.
+3. When gathering the job description page URL, ensure that URLs are not extracted from the `Apply` button. Instead, use the URL from the card (which is used to open the job description that appears on the right side of the page).
+4. If the TopResume webpage opens and redirects to a URL that contains `auth/sign-in`, this means the user needs to sign in to the web site.  Stop processing and notify the user that they will need to sign-in before any further processing can occur.
+
+This application uses an internal non-interactive browser, which does not provide a way for a user to sign in to a login-in protected website.  Change that to use a debug browser instance that would be started by the user before starting this application.  The debug browser would be started using this command: `"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\Users\<user name>\ChromeAutomationProfile"`.
+Before starting any URL processing, verify this debug browser has been started.  If it has not been started, stop processing and tell the user that they must start the browser and then restart the application.
+
+H.
+---------------------
+Update the current application to create a new data extraction process, like the existing Tools data extraction.
+1. The new data extraction will be called `Conditions`, and will read current settings from the `conditions.txt` file.
+2. The `conditions.txt` file will:
+- Contain one item per line.
+- Empty lines, lines with all blanks, or lines starting with `#` will be ignored.
+- A valid line may contain a line WITHOUT a colon, which will be used as follows:
+	- In matching as: exact match, case-insensitive.
+	- Example: `Security Clearance`.
+- A valid line may contain a line WITH a colon, which will be used as follows:
+	- Two parts; separated by a colon.
+	- In matching using the left part (exact match, case-insensitive), and then substitute the right part during subsiquent processing.
+	- Example: `clearance is required:Security Clearance` would match `Clearance IS Required` and then use `Security Clearance` for reporting.
+- Implement use of an extracted condition during exclusions processing.  An example exclusion (read from the `exclusions.txt` file) is: `Condition=Security Clearance`.  The result of this example is that a job description that contained the condition `Security Clearance` would be marked for exclusion.
+
+
+I.
+---------------------
+
+
+J.
+---------------------
+
+
+K.
+---------------------
+
+
+L.
+---------------------
 

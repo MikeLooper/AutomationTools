@@ -13,8 +13,6 @@ from extractors.base import BaseExtractor, extract_attributes
 
 
 class GenericExtractor(BaseExtractor):
-    HEADLESS = True
-
     # CSS selectors tried in order to find job list items
     CARD_SELECTORS = [
         "li[class*='job']",

@@ -14,7 +14,12 @@ from datetime import datetime
 from pathlib import Path
 
 from extractors.dispatcher import get_extractor
-from extractors.base import configure_extraction_aliases
+from extractors.base import (
+    DEBUG_BROWSER_ADDRESS,
+    DEBUG_BROWSER_LAUNCH_COMMAND,
+    configure_extraction_aliases,
+    is_debug_browser_running,
+)
 from matcher import apply_exclusions, compute_match, parse_exclusion_rules
 from reporter import generate_report
 
@@ -28,6 +33,7 @@ DEFAULT_EXCLUSIONS_PATH = SETTINGS_DIR / "exclusions.txt"
 DEFAULT_PROGRAMMING_LANGUAGES_PATH = SETTINGS_DIR / "programminglanguages.txt"
 DEFAULT_TOOLS_PATH = SETTINGS_DIR / "tools.txt"
 DEFAULT_JOB_TYPES_PATH = SETTINGS_DIR / "jobtypes.txt"
+DEFAULT_CONDITIONS_PATH = SETTINGS_DIR / "conditions.txt"
 DEFAULT_MATCH_PCT = 75
 DEFAULT_MAX_JOBS_PER_URL = 0
 
@@ -68,6 +74,11 @@ def load_alias_lines(path: str) -> list[tuple[str, str]]:
 
 
 def main() -> None:
+    # Windows consoles often default to a legacy codepage (e.g. cp1252) that
+    # can't encode the ✅/🚫 status emoji printed per job below.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Job Search Agent")
     parser.add_argument(
         "--urls",
@@ -113,6 +124,11 @@ def main() -> None:
         help=f"Path to job type alias file (default: {DEFAULT_JOB_TYPES_PATH})",
     )
     parser.add_argument(
+        "--conditions",
+        default=str(DEFAULT_CONDITIONS_PATH),
+        help=f"Path to conditions alias file (default: {DEFAULT_CONDITIONS_PATH})",
+    )
+    parser.add_argument(
         "--match-pct",
         default=DEFAULT_MATCH_PCT,
         type=int,
@@ -141,6 +157,7 @@ def main() -> None:
     language_aliases = load_alias_lines(args.programminglanguages)
     tool_aliases = load_alias_lines(args.tools)
     job_type_aliases = load_alias_lines(args.jobtypes)
+    condition_aliases = load_alias_lines(args.conditions)
     match_pct  = args.match_pct
     max_jobs_per_url = args.max_jobs_per_url
     exclusion_rules, exclusion_warnings = parse_exclusion_rules(exclusion_lines)
@@ -149,13 +166,23 @@ def main() -> None:
         print("ERROR: --max-jobs-per-url must be 0 or greater", file=sys.stderr)
         sys.exit(1)
 
-    configure_extraction_aliases(language_aliases, tool_aliases, job_type_aliases)
+    configure_extraction_aliases(language_aliases, tool_aliases, job_type_aliases, condition_aliases)
 
     if not urls:
         if single_url:
             print("ERROR: --url was provided but empty after trimming", file=sys.stderr)
         else:
             print("ERROR: No URLs found in", args.urls, file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Checking for the debug Chrome browser at {DEBUG_BROWSER_ADDRESS}...")
+    if not is_debug_browser_running():
+        print(
+            f"ERROR: No debug Chrome browser was found at {DEBUG_BROWSER_ADDRESS}.\n"
+            "Start it first, then restart this application:\n"
+            f"  {DEBUG_BROWSER_LAUNCH_COMMAND}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     run_parameters: list[dict[str, object]] = [
@@ -208,6 +235,12 @@ def main() -> None:
             "supplied": _arg_supplied(raw_args, "--jobtypes"),
         },
         {
+            "name": "--conditions",
+            "description": "Path to conditions aliases file.",
+            "value": args.conditions,
+            "supplied": _arg_supplied(raw_args, "--conditions"),
+        },
+        {
             "name": "--match-pct",
             "description": "Minimum match percentage (0-100) to recommend a job.",
             "value": match_pct,
@@ -231,6 +264,7 @@ def main() -> None:
         "programminglanguages": args.programminglanguages,
         "tools": args.tools,
         "jobtypes": args.jobtypes,
+        "conditions": args.conditions,
         "match_pct": match_pct,
         "max_jobs_per_url": max_jobs_per_url,
     }
@@ -273,10 +307,7 @@ def main() -> None:
         for job in jobs:
             score, details = compute_match(job["attributes"], targets)
             preliminary_recommended = score >= match_pct
-            if preliminary_recommended:
-                excluded, exclusion_details = apply_exclusions(job["attributes"], exclusion_rules)
-            else:
-                excluded, exclusion_details = False, []
+            excluded, exclusion_details = apply_exclusions(job["attributes"], exclusion_rules)
             job["match_score"]   = score
             job["match_details"] = details
             job["excluded"]      = excluded
