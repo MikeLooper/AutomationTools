@@ -177,7 +177,9 @@ Update the current application to create a new data extraction process, like the
 
 I.
 ---------------------
-
+Update the current application to extract data from the Indeed website.
+It would select each of the cards on the left side of the screen, extracting data from each job description displayed on the right side of the screen after the card was selected.
+Include a check for a screen that says it is verifying you are a human.  If that occurs, present the screen for a human to click on the verify checkbox and then resume once that is done.
 
 J.
 ---------------------

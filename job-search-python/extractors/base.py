@@ -14,6 +14,7 @@ from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -279,6 +280,80 @@ def _ensure_open_page(debugger_address: str) -> None:
             continue
 
 
+# ---------------------------------------------------------------------------
+# Human-verification ("Press & Hold" / Cloudflare checkbox) handling
+# ---------------------------------------------------------------------------
+#
+# Some sites (Indeed included) occasionally interrupt automated browsing with
+# a "Verifying you are human" interstitial that requires a person to click a
+# checkbox. Since this app attaches to a browser window the user can see,
+# the extractor pauses and waits for the person to clear it, then resumes.
+
+HUMAN_VERIFICATION_PHRASES = [
+    "verify you are human",
+    "verifying you are human",
+    "additional verification required",
+    "please verify you are a human",
+    "checking your browser",
+    "press and hold",
+]
+
+HUMAN_VERIFICATION_IFRAME_SELECTOR = (
+    "iframe[src*='challenges.cloudflare.com'], "
+    "iframe[title*='challenge'], "
+    "iframe[title*='Cloudflare']"
+)
+
+
+def is_human_verification_present(driver: webdriver.Chrome) -> bool:
+    """Return True when the current page looks like a human-verification interstitial."""
+    try:
+        title = (driver.title or "").lower()
+    except Exception:
+        title = ""
+    if "just a moment" in title or "verifying" in title:
+        return True
+
+    try:
+        body_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+    except Exception:
+        body_text = ""
+    if any(phrase in body_text for phrase in HUMAN_VERIFICATION_PHRASES):
+        return True
+
+    try:
+        if driver.find_elements(By.CSS_SELECTOR, HUMAN_VERIFICATION_IFRAME_SELECTOR):
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def wait_for_human_verification(
+    driver: webdriver.Chrome,
+    poll_interval: float = 2.0,
+    timeout: float = 600.0,
+) -> None:
+    """If a human-verification interstitial is showing, pause until a person clears it."""
+    if not is_human_verification_present(driver):
+        return
+
+    print(
+        "  !! Human verification detected — switch to the browser window and "
+        "click the verification checkbox. Waiting for it to clear..."
+    )
+    waited = 0.0
+    while is_human_verification_present(driver) and waited < timeout:
+        time.sleep(poll_interval)
+        waited += poll_interval
+
+    if is_human_verification_present(driver):
+        print("  !! Timed out waiting for human verification to clear.")
+    else:
+        print("  Human verification cleared — resuming.")
+
+
 def build_driver(debugger_address: str = DEBUG_BROWSER_ADDRESS) -> webdriver.Chrome:
     """Attach to the user-launched debug Chrome instance (see module notes above)."""
     _ensure_open_page(debugger_address)
@@ -339,3 +414,7 @@ class BaseExtractor(ABC):
     @staticmethod
     def sleep(seconds: float) -> None:
         time.sleep(seconds)
+
+    @staticmethod
+    def wait_for_human_verification(driver: webdriver.Chrome) -> None:
+        wait_for_human_verification(driver)
