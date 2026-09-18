@@ -5,10 +5,10 @@ Reads the URL currently open in the user's system browser, scrapes it with a
 predefined extractor when the site is recognized (falling back to a generic
 heuristic extractor otherwise).
 
-For a LinkedIn search-results page with a card list, this clicks through
-every card (via the live-browser-attach session — see README) and writes an
-HTML/JSON report of all of them, matching job-search-python's report layout.
-Anything else prints a single-job summary to the console.
+For a LinkedIn or Indeed search-results page with a card list, this clicks
+through every card (via the live-browser-attach session — see README) and
+writes an HTML/JSON report of all of them, matching job-search-python's
+report layout. Anything else prints a single-job summary to the console.
 
 Usage:
     python job_scraper.py
@@ -23,10 +23,11 @@ from datetime import datetime
 from pathlib import Path
 
 from browser_reader import BrowserNotFoundError, get_active_browser_url
+from extractors import indeed as indeed_module
 from extractors import linkedin as linkedin_module
 from extractors.base import configure_extraction_aliases
 from extractors.dispatcher import get_extractor
-from list_scraper import scrape_all_cards
+from list_scraper import scrape_all_cards, scrape_all_indeed_cards
 from matcher import apply_exclusions, compute_match, parse_exclusion_rules
 from page_fetcher import fetch, find_debug_port, open_in_browser
 from reporter import generate_report
@@ -164,17 +165,20 @@ def main() -> None:
     if not is_known_site:
         print(f"  Site not pre-programmed for {url} - using generic extraction.")
 
-    # A card-list page (currently: LinkedIn search results) needs real clicks
+    # A card-list page (LinkedIn or Indeed search results) needs real clicks
     # to see each job, which only the live-browser-attach session can do.
-    # Gated on the target URL actually being a LinkedIn one — otherwise
-    # scrape_all_cards would happily click through whatever LinkedIn tab is
+    # Gated on the target URL actually being one of those sites — otherwise
+    # the list scraper would happily click through whatever matching tab is
     # open in the attached browser even when a different site/URL was asked
     # for, since it only checks the live browser's own tabs, not `url`.
     jobs = None
-    if module is linkedin_module:
+    if module in (linkedin_module, indeed_module):
         port = find_debug_port(extra_ports=[args.debug_port] if args.debug_port else None)
         if port is not None:
-            jobs = scrape_all_cards(port, module, attributes)
+            if module is linkedin_module:
+                jobs = scrape_all_cards(port, module, attributes)
+            else:
+                jobs = scrape_all_indeed_cards(port, module, attributes)
 
     if not jobs:
         try:

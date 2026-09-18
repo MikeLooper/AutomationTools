@@ -7,13 +7,14 @@ Unrecognized hostnames fall back to extractors.generic.
 from types import ModuleType
 from urllib.parse import urlparse
 
-from extractors import connectingcolorado, dice, generic, greenhouse, linkedin, remotive, topresume
+from extractors import connectingcolorado, dice, generic, greenhouse, indeed, linkedin, remotive, topresume
 
 _DOMAIN_MAP: dict[str, ModuleType] = {
     "jobs.connectingcolorado.gov": connectingcolorado,
     "connectingcolorado.gov": connectingcolorado,
     "dice.com": dice,
     "greenhouse.io": greenhouse,
+    "indeed.com": indeed,
     "linkedin.com": linkedin,
     "remotive.com": remotive,
     "careerio.topresume.com": topresume,

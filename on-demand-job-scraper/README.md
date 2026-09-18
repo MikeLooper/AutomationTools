@@ -26,8 +26,8 @@ session instead of an anonymous request.
      visible (many boards embed a `schema.org JobPosting` JSON-LD block for
      SEO even on pages that require login to browse).
 3. **Determine the site and extract.** The page's hostname is checked
-   against a small set of predefined sites (Dice, Greenhouse, LinkedIn,
-   Remotive, Connecting Colorado, TopResume). A recognized site uses its
+   against a small set of predefined sites (Dice, Greenhouse, Indeed,
+   LinkedIn, Remotive, Connecting Colorado, TopResume). A recognized site uses its
    dedicated extractor (schema.org JSON-LD first, then site-specific CSS
    selectors, then shared text heuristics). An unrecognized site falls back
    to `extractors/generic.py`, which applies the same JSON-LD + heuristic
@@ -143,6 +143,7 @@ Same format as `job-search-python`:
 |---|---|
 | Dice | Parses the embedded Next.js `__NEXT_DATA__` payload when present. |
 | Greenhouse | Reads schema.org JobPosting JSON-LD when the board provides it. |
+| Indeed | Works on both a direct job-view page and a search-results page with a job open in the preview pane (the `vjk=` query param). Indeed returns a 403 to a plain HTTP request even for public postings, so this one needs the authenticated/live-browser read (see above) in practice. |
 | LinkedIn | Works on both a direct job-view page and a search-results page with a job open in the preview pane. LinkedIn's CSS classes are hashed/build-generated and not stable, so this reads the `<title>` tag (`"{Job Title} \| {Company} \| LinkedIn"`), an `aria-label="Company, {Name}."` near the logo, and the "About the job" section text instead of any selector. |
 | Remotive | — |
 | Connecting Colorado | Needs the authenticated read (see above) for most postings. |
