@@ -6,6 +6,6 @@
 #
 # Salary amounts can be written as: 200000, 200K, $200K, $200,000
 
-Job Title=Solutions Architect OR Software Engineering Manager OR Software Engineer
+Job Title=Solutions Architect OR Software Engineering Manager OR Software Engineer OR Tech Lead
 Programming Language=C# OR .NET
-Salary Range Includes 200K OR Is Greater Than 200K
+Salary Range Includes 190K OR Is Greater Than 190K

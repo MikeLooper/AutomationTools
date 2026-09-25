@@ -9,10 +9,12 @@ Usage:
 import argparse
 import json
 import os
+import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
+from extractors.connectingcolorado import ConnectingColoradoExtractor
 from extractors.dispatcher import get_extractor
 from extractors.base import (
     DEBUG_BROWSER_ADDRESS,
@@ -36,6 +38,10 @@ DEFAULT_JOB_TYPES_PATH = SETTINGS_DIR / "jobtypes.txt"
 DEFAULT_CONDITIONS_PATH = SETTINGS_DIR / "conditions.txt"
 DEFAULT_MATCH_PCT = 75
 DEFAULT_MAX_JOBS_PER_URL = 0
+RECENCY_PARAM = "filter_recencyWFX"
+RECENCY_PREFIX = "%5B%22"
+RECENCY_SUFFIX = "%22+TO+*%5D"
+RECENCY_LOOKBACK_SECONDS = 2 * 24 * 60 * 60
 
 
 def _arg_supplied(raw_args: list[str], flag: str) -> bool:
@@ -71,6 +77,28 @@ def load_alias_lines(path: str) -> list[tuple[str, str]]:
         else:
             aliases.append((line, line))
     return aliases
+
+
+def refresh_connectingcolorado_recency(url: str) -> str:
+    """Set a ConnectingColorado URL's recency filter start time to today 00:00 UTC minus 2 days."""
+    if get_extractor(url).__class__ is not ConnectingColoradoExtractor:
+        return url
+
+    utc_midnight = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    start_time = str(int(utc_midnight.timestamp()) - RECENCY_LOOKBACK_SECONDS)
+    param_match = re.search(rf"([?&]){RECENCY_PARAM}=([^&#]*)", url)
+    if param_match:
+        value = param_match.group(2)
+        value_pattern = rf"({re.escape(RECENCY_PREFIX)}).*?({re.escape(RECENCY_SUFFIX)})"
+        if re.search(value_pattern, value):
+            new_value = re.sub(value_pattern, lambda m: m.group(1) + start_time + m.group(2), value, count=1)
+        else:
+            new_value = RECENCY_PREFIX + start_time + RECENCY_SUFFIX
+        return url[:param_match.start(2)] + new_value + url[param_match.end(2):]
+
+    base, hash_sep, fragment = url.partition("#")
+    separator = "&" if "?" in base else "?"
+    return f"{base}{separator}{RECENCY_PARAM}={RECENCY_PREFIX}{start_time}{RECENCY_SUFFIX}{hash_sep}{fragment}"
 
 
 def main() -> None:
@@ -150,7 +178,10 @@ def main() -> None:
     raw_args = sys.argv[1:]
 
     single_url = args.url.strip()
-    urls       = [single_url] if single_url else load_lines(args.urls)
+    urls       = [
+        refresh_connectingcolorado_recency(url)
+        for url in ([single_url] if single_url else load_lines(args.urls))
+    ]
     attributes = load_lines(args.attributes)
     targets    = load_lines(args.targets)
     exclusion_lines = load_lines(args.exclusions)

@@ -2,5 +2,5 @@
 #   AttributeName=Value OR Value2
 # Left empty by default (no exclusions applied).
 
-Job Title=Full Stack OR Front End
+Job Title=Full Stack OR Full-Stack OR FullStack OR Front End OR FrontEnd
 Condition=Security Clearance
