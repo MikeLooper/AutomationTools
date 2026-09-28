@@ -170,7 +170,7 @@ def main() -> None:
     # Gated on the target URL actually being one of those sites — otherwise
     # the list scraper would happily click through whatever matching tab is
     # open in the attached browser even when a different site/URL was asked
-    # for, since it only checks the live browser's own tabs, not `url`.
+    # for. (The Indeed scraper also prefers the tab showing `url` itself.)
     jobs = None
     if module in (linkedin_module, indeed_module):
         port = find_debug_port(extra_ports=[args.debug_port] if args.debug_port else None)
@@ -178,7 +178,7 @@ def main() -> None:
             if module is linkedin_module:
                 jobs = scrape_all_cards(port, module, attributes)
             else:
-                jobs = scrape_all_indeed_cards(port, module, attributes)
+                jobs = scrape_all_indeed_cards(port, module, attributes, url)
 
     if not jobs:
         try:

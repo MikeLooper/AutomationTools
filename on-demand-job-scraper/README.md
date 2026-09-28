@@ -143,7 +143,7 @@ Same format as `job-search-python`:
 |---|---|
 | Dice | Parses the embedded Next.js `__NEXT_DATA__` payload when present. |
 | Greenhouse | Reads schema.org JobPosting JSON-LD when the board provides it. |
-| Indeed | Works on both a direct job-view page and a search-results page with a job open in the preview pane (the `vjk=` query param). Indeed returns a 403 to a plain HTTP request even for public postings, so this one needs the authenticated/live-browser read (see above) in practice. |
+| Indeed | Works on both a direct job-view page and a search-results page (including the indeed.com home feed). On a results page with the live-browser read available, every result card on the left is clicked in turn and the job details it loads on the right are scraped, with the card's own summary (company, location, salary, job type) filling any gaps; a card whose details never load is still reported from the card alone. Indeed returns a 403 to a plain HTTP request even for public postings, so this one needs the authenticated/live-browser read (see above) in practice. |
 | LinkedIn | Works on both a direct job-view page and a search-results page with a job open in the preview pane. LinkedIn's CSS classes are hashed/build-generated and not stable, so this reads the `<title>` tag (`"{Job Title} \| {Company} \| LinkedIn"`), an `aria-label="Company, {Name}."` near the logo, and the "About the job" section text instead of any selector. |
 | Remotive | — |
 | Connecting Colorado | Needs the authenticated read (see above) for most postings. |

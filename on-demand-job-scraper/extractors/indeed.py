@@ -27,7 +27,14 @@ generic testids (e.g. "company-name") elsewhere on the page — this is why
 title/company/location are all deliberately scoped under the viewjob pane's
 own landmarks instead of a bare `[data-testid="company-name"]` lookup, which
 would just as happily match the first result card instead of the previewed
-job.
+job. Some layouts have no "jobDetailsSection" and put the pay/job-type chips
+in a "structured-job-summary" block instead, so both are checked.
+
+`parse_card` reads one of those left-hand result cards on its own (title,
+company, location, salary snippet, job-type chips — all under stable
+`data-testid`s or Indeed's long-lived `jcs-JobTitle` link class). The list
+scraper uses it to fill in anything the detail pane didn't yield, or as the
+whole result when a card's detail pane never loaded.
 """
 
 from typing import Any
@@ -73,7 +80,7 @@ def parse(url: str, html: str, attributes: list[str]) -> dict[str, Any]:
     meta_text = meta_el.get_text(" ", strip=True) if meta_el else ""
     company_link = meta_el.select_one("a[href*='/cmp/']") if meta_el else None
 
-    details_el = soup.select_one("[data-testid='jobDetailsSection']")
+    details_el = soup.select_one("[data-testid='jobDetailsSection'], [data-testid='structured-job-summary']")
     details_text = details_el.get_text(" ", strip=True) if details_el else ""
 
     apply_overrides(attrs, {
@@ -90,3 +97,30 @@ def parse(url: str, html: str, attributes: list[str]) -> dict[str, Any]:
         note = "Indeed showed a bot-verification page instead of the job; only the live-browser-attach session (see README) reliably gets past this."
 
     return {"job_url": url, "attributes": attrs, "source": "Indeed (predefined)", "note": note}
+
+
+def card_fields(card_html: str) -> dict[str, str]:
+    """Canonical-keyed fields (see `apply_overrides`) read from one result card."""
+    soup = BeautifulSoup(card_html, "lxml")
+    title_el = soup.select_one("a.jcs-JobTitle span[title]") or soup.select_one("a.jcs-JobTitle")
+    salary_el = soup.select_one("[data-testid*='salary-snippet-container']")
+    snippets_text = " ".join(el.get_text(" ", strip=True) for el in soup.select("[data-testid*='attribute_snippet_testid']"))
+    return {
+        "title": (title_el.get("title") or title_el.get_text(strip=True)) if title_el else "",
+        "company": _text(soup, ["[data-testid='company-name']"]),
+        "location": _text(soup, ["[data-testid='text-location']"]),
+        "salary": extract_salary_range(salary_el.get_text(" ", strip=True)) if salary_el else "",
+        "type": extract_job_type(snippets_text),
+    }
+
+
+def parse_card(url: str, card_html: str, attributes: list[str]) -> dict[str, Any]:
+    """A result built from a result card alone, for when its detail pane never loaded."""
+    attrs = extract_attributes(html_to_text(card_html), attributes)
+    apply_overrides(attrs, card_fields(card_html))
+    return {
+        "job_url": url,
+        "attributes": attrs,
+        "source": "Indeed (predefined)",
+        "note": "Only the result card's summary could be read; the full job description didn't load.",
+    }

@@ -17,7 +17,18 @@ linkedin.py), so cards are found via an accessible, stable signal instead: a
 `role="button"` ancestor is the clickable card itself. Clicking a card there
 updates an in-page preview pane without navigating.
 
-Indeed works differently (confirmed by testing against a live results page):
+Indeed has two results layouts. The usual desktop one (confirmed against a
+live page, including the plain indeed.com home feed, not just /jobs) is a
+split pane: result cards (div.job_seen_beacon, each holding an
+`a.jcs-JobTitle[data-jk]` link) down the left, and clicking one loads that
+job into the detail pane on the right in place, setting `?vjk=<jk>` on the
+URL. Each card is clicked, its pane scraped, and the card's own summary
+(company, location, salary snippet, job type) merged in for anything the
+pane didn't yield; a card whose pane never loads is still reported from the
+card alone. Every card is clicked exactly once, never retried — a sponsored
+card's click is a paid ad click for the employer.
+
+The other layout (confirmed by testing against a live results page):
 clicking a card's "View full details of ..." button (data-testid
 "inner-view-details-pressable" — the one non-hashed, repeated-per-card
 landmark) navigates the whole tab to a standalone job-view page
@@ -39,19 +50,24 @@ and waits for a human to clear it before continuing on its own.
 
 import time
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import uiautomation as auto
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
+from extractors.base import apply_overrides
 from extractors.indeed import BLOCK_MARKERS as INDEED_BLOCK_MARKERS
+from extractors.indeed import card_fields as indeed_card_fields
+from extractors.indeed import parse_card as parse_indeed_card
 
 CARD_XPATH = "//div[@role='button'][.//button[starts-with(@aria-label,'Dismiss') and contains(@aria-label,'job')]]"
 DISMISS_BUTTON_XPATH = ".//button[starts-with(@aria-label,'Dismiss')]"
 
 INDEED_CARD_BUTTON_XPATH = "//button[@data-testid='inner-view-details-pressable']"
+INDEED_PANE_CARD_SELECTOR = "div.job_seen_beacon"
+INDEED_PANE_CARD_LINK_SELECTOR = "a.jcs-JobTitle[data-jk], a[data-jk]"
 
 HUMAN_CHECK_POLL_INTERVAL = 1.0
 HUMAN_CHECK_REMINDER_INTERVAL = 20.0
@@ -181,10 +197,43 @@ def scrape_all_cards(debug_port: int, extractor_module, attributes: list[str]) -
     return jobs
 
 
-def _switch_to_indeed_jobs_tab(driver: webdriver.Chrome) -> bool:
+def _is_indeed_host(url: str) -> bool:
+    hostname = urlparse(url).hostname or ""
+    return hostname == "indeed.com" or hostname.endswith(".indeed.com")
+
+
+def _host_and_path(url: str) -> str:
+    parsed = urlparse(url if "://" in url else f"https://{url}")
+    host = parsed.netloc.removeprefix("www.")
+    return f"{host}{parsed.path.rstrip('/')}"
+
+
+def _has_indeed_cards(driver: webdriver.Chrome) -> bool:
+    return bool(
+        driver.find_elements(By.CSS_SELECTOR, INDEED_PANE_CARD_SELECTOR)
+        or driver.find_elements(By.XPATH, INDEED_CARD_BUTTON_XPATH)
+    )
+
+
+def _switch_to_indeed_results_tab(driver: webdriver.Chrome, target_url: str) -> bool:
+    """
+    Switch to the Indeed tab showing a card list, preferring the one whose
+    host+path matches `target_url` (the page the user asked for) over any
+    other open Indeed tab. Results can live at /jobs, /q-...-jobs.html, or
+    the bare indeed.com home feed, so no specific path is required — having
+    result cards is what counts.
+    """
+    indeed_handles = []
     for handle in driver.window_handles:
         driver.switch_to.window(handle)
-        if "indeed.com/jobs" in driver.current_url:
+        if _is_indeed_host(driver.current_url):
+            indeed_handles.append((handle, _host_and_path(driver.current_url) == _host_and_path(target_url)))
+    indeed_handles.sort(key=lambda item: not item[1])
+
+    for handle, _ in indeed_handles:
+        driver.switch_to.window(handle)
+        _wait_through_human_check(driver)
+        if _has_indeed_cards(driver):
             return True
     return False
 
@@ -285,30 +334,114 @@ def _wait_for_indeed_results_list(driver: webdriver.Chrome, timeout: float = 8.0
     return False
 
 
-def scrape_all_indeed_cards(debug_port: int, extractor_module, attributes: list[str]) -> list[dict[str, Any]] | None:
+def _pane_job_key(driver: webdriver.Chrome) -> str:
+    return (parse_qs(urlparse(driver.current_url).query).get("vjk") or [""])[0]
+
+
+def _wait_for_indeed_pane(driver: webdriver.Chrome, job_key: str, timeout: float = 10.0) -> bool:
+    """Wait for the right-hand detail pane to switch to `job_key` (the URL's
+    `vjk` updates to it and the pane's title/description are present).
+    Returns False on timeout. A human-verification challenge mid-wait pauses
+    the clock rather than counting against it."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if (
+            _pane_job_key(driver) == job_key
+            and driver.find_elements(By.CSS_SELECTOR, "#jobsearch-ViewjobPaneWrapper [data-testid='vj-job-title']")
+            and driver.find_elements(By.CSS_SELECTOR, "#jobsearch-ViewjobPaneWrapper div.simple-job-description-html")
+        ):
+            return True
+        if _looks_like_human_check(driver):
+            _wait_through_human_check(driver)
+            deadline = time.monotonic() + timeout
+            continue
+        time.sleep(0.15)
+    return False
+
+
+def _scrape_indeed_split_pane_cards(driver: webdriver.Chrome, extractor_module, attributes: list[str]) -> list[dict[str, Any]]:
+    """Click each left-hand card, scrape the right-hand detail pane it loads
+    in place, and merge in the card's own summary fields (see module
+    docstring)."""
+    num_cards = len(driver.find_elements(By.CSS_SELECTOR, INDEED_PANE_CARD_SELECTOR))
+    print(f"  Found {num_cards} job cards in the list (hidden decoy cards are skipped).")
+    jobs: list[dict[str, Any]] = []
+    seen_keys: set[str] = set()
+
+    for index in range(num_cards):
+        # Re-query every iteration: the list can re-render after a click,
+        # which would make a reference from before it stale.
+        cards = driver.find_elements(By.CSS_SELECTOR, INDEED_PANE_CARD_SELECTOR)
+        if index >= len(cards):
+            break
+        card = cards[index]
+        title_hint = f"card {index + 1}"
+
+        try:
+            # The list carries hidden, zero-size decoy cards (fake sequential
+            # job keys like "123456789abcdef0", copying a neighbor's title) —
+            # likely bot honeypots, and not clickable anyway. Skip them.
+            if not card.is_displayed():
+                continue
+            links = card.find_elements(By.CSS_SELECTOR, INDEED_PANE_CARD_LINK_SELECTOR)
+            job_key = links[0].get_attribute("data-jk") if links else ""
+            if not job_key or job_key in seen_keys:
+                continue
+            seen_keys.add(job_key)
+
+            card_html = card.get_attribute("outerHTML") or ""
+            fields = indeed_card_fields(card_html)
+            title_hint = fields["title"] or title_hint
+            job_url = f"https://www.indeed.com/viewjob?jk={job_key}"
+
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", links[0])
+            links[0].click()
+
+            if _wait_for_indeed_pane(driver, job_key):
+                _wait_for_description_to_settle(driver)
+                result = extractor_module.parse(job_url, driver.page_source, attributes)
+                apply_overrides(result["attributes"], fields, only_if_missing=True)
+                print(f"    [{index + 1}/{num_cards}] {result['attributes'].get('Job Title') or title_hint}")
+            else:
+                result = parse_indeed_card(job_url, card_html, attributes)
+                print(f"    [{index + 1}/{num_cards}] {title_hint} (card summary only: job details didn't load)")
+            jobs.append(result)
+        except Exception as exc:  # noqa: BLE001
+            print(f"    [{index + 1}/{num_cards}] Error scraping '{title_hint}': {exc}")
+
+    return jobs
+
+
+def scrape_all_indeed_cards(debug_port: int, extractor_module, attributes: list[str], target_url: str) -> list[dict[str, Any]] | None:
     """
     Return one result dict (matching extractor_module.parse's return shape)
-    per job card on the current Indeed search-results page, or None if the
-    current tab isn't a card-list page at all (e.g. a direct job-view page,
-    or not Indeed), so the caller can fall back to the single-page flow.
+    per job card on the Indeed results page open in the live browser
+    (preferring the tab showing `target_url`), or None if no Indeed tab has
+    a card list (e.g. a direct job-view page), so the caller can fall back to
+    the single-page flow.
 
-    Unlike LinkedIn, clicking a card navigates the whole tab to a standalone
-    job-view page (see module docstring), so each iteration clicks, scrapes,
-    then navigates back to the list before the next click.
+    Handles both results layouts (see module docstring): the split-pane one,
+    where a click loads the job into the right-hand pane in place, and the
+    one where a click navigates the whole tab to a standalone job page.
     """
     try:
         driver = _attach(debug_port)
     except Exception:
         return None
 
-    if not _switch_to_indeed_jobs_tab(driver):
+    if not _switch_to_indeed_results_tab(driver, target_url):
         return None
 
-    _wait_through_human_check(driver)
+    if driver.find_elements(By.CSS_SELECTOR, INDEED_PANE_CARD_SELECTOR):
+        return _scrape_indeed_split_pane_cards(driver, extractor_module, attributes)
+    return _scrape_indeed_navigating_cards(driver, extractor_module, attributes)
 
+
+def _scrape_indeed_navigating_cards(driver: webdriver.Chrome, extractor_module, attributes: list[str]) -> list[dict[str, Any]]:
+    """Clicking a card navigates the whole tab to a standalone job-view page
+    (see module docstring), so each iteration clicks, scrapes, then
+    navigates back to the list before the next click."""
     buttons = driver.find_elements(By.XPATH, INDEED_CARD_BUTTON_XPATH)
-    if not buttons:
-        return None
 
     num_cards = len(buttons)
     print(f"  Found {num_cards} job cards in the list.")
