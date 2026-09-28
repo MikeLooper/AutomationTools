@@ -5,7 +5,7 @@ An automated job search agent that visits multiple job sites, extracts job descr
 ## Requirements
 
 - Python 3.10+
-- Google Chrome or Chromium (for Selenium)
+- Google Chrome (for Selenium)
 - ChromeDriver matching your Chrome version (auto-managed via `webdriver-manager`)
 
 ## Installation
@@ -17,9 +17,23 @@ pip install -r requirements.txt
 
 ## Usage
 
+Some sites (TopResume, LinkedIn, ...) require you to be signed in. Since the app doesn't launch
+its own browser, it instead attaches to a Chrome instance that you start yourself, with a
+persistent profile that keeps you signed in across runs. **Before running the app**, start Chrome
+with remote debugging enabled:
+
+```bash
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\Users\%USERNAME%\ChromeAutomationProfile"
+```
+
+Sign in to any sites that require it in that browser window, then leave it open and run:
+
 ```bash
 python job-search
 ```
+
+If this debug browser isn't running and reachable at `127.0.0.1:9222`, the app stops immediately
+and tells you to start it before restarting the application.
 
 At startup, the app prints one log line with the effective runtime parameters, including
 which URL source is being used (`--url` or `--urls`) and all active file/threshold settings.
@@ -33,6 +47,7 @@ The script defaults to:
 - `settings/programminglanguages.txt`
 - `settings/tools.txt`
 - `settings/jobtypes.txt`
+- `settings/conditions.txt`
 - `--url` not set (uses `--urls` file)
 - `--match-pct 75`
 - `--max-jobs-per-url 0` (no limit)
@@ -48,6 +63,7 @@ python job-search \
   --programminglanguages settings/programminglanguages.txt \
   --tools settings/tools.txt \
   --jobtypes settings/jobtypes.txt \
+  --conditions settings/conditions.txt \
   --match-pct 75 \
   --max-jobs-per-url 25
 ```
@@ -63,13 +79,14 @@ python job-search --url "https://remotive.com/remote-jobs/software-dev"
 | Argument | Description |
 |----------|-------------|
 | `--urls` | Path to a file containing one search URL per line. Defaults to `settings/urls.txt` |
-| `--url` | Single search URL to process. When provided, this overrides `--urls` and only this URL is used. |
-| `--attributes` | Path to a file listing the attributes to extract (e.g. `Job Title`, `Job Type`, `Company`, `Location`, `Programming Language`, `Tools`, `Salary Range`). Defaults to `settings/attributes.txt` |
+| `--url` | Single search URL to process. When provided, this overrides `--urls` and only this URL is used.  Enclose this URL in double quotes to prevent mis-reading of arguments, |
+| `--attributes` | Path to a file listing the attributes to extract (e.g. `Job Title`, `Job Type`, `Company`, `Location`, `Programming Language`, `Tools`, `Condition`, `Salary Range`). Defaults to `settings/attributes.txt` |
 | `--targets` | Path to a file listing target attribute values (e.g. `Job Title=Solutions Architect`). Defaults to `settings/targets.txt` |
 | `--exclusions` | Path to a file listing exclusion rules. Defaults to `settings/exclusions.txt` |
 | `--programminglanguages` | Path to programming-language aliases used for discovery/reporting. Defaults to `settings/programminglanguages.txt` |
 | `--tools` | Path to tool aliases used for discovery/reporting. Defaults to `settings/tools.txt` |
 | `--jobtypes` | Path to job type aliases used for discovery/reporting. Defaults to `settings/jobtypes.txt` |
+| `--conditions` | Path to condition aliases used for discovery/reporting. Defaults to `settings/conditions.txt` |
 | `--match-pct` | Integer 0–100. Jobs scoring ≥ this value are flagged as **recommended**. Defaults to `75` |
 | `--max-jobs-per-url` | Integer ≥ 0. Limits how many extracted jobs are processed for each URL. `0` means no limit. Defaults to `0` |
 
@@ -93,6 +110,7 @@ Company
 Location
 Programming Language
 Tools
+Condition
 Salary Range
 ```
 
@@ -133,6 +151,7 @@ Lines missing `=` are ignored and listed as notes in the HTML report.
 Job Title=Intern OR Junior
 Programming Language=COBOL
 Tools=Not specified
+Condition=Security Clearance
 ```
 
 ### settings/programminglanguages.txt
@@ -179,6 +198,27 @@ Remote
 Temporary
 ```
 
+### settings/conditions.txt
+One alias per line. These values are the source of truth for `Condition` extraction.
+
+- No colon: the same value is used for discovery and reporting (exact match, case-insensitive).
+- With colon: `discovery:reporting` — the left side is matched (exact, case-insensitive) and the right side is substituted for reporting.
+- Only the first colon is treated as the separator.
+
+```
+ability to obtain a Secret clearance:Security Clearance
+clearance is required:Security Clearance
+Clearance Level:Security Clearance
+Minimum Clearance Required:Security Clearance
+Security Clearance
+Secret clearance:Security Clearance
+Top Secret clearance:Security Clearance
+```
+
+Conditions found in a job description are reported in the `Condition` attribute and can be used in
+`settings/exclusions.txt` like any other attribute, e.g. `Condition=Security Clearance` excludes any
+job whose extracted `Condition` value contains "Security Clearance".
+
 ## Output
 
 Reports are written to:
@@ -211,8 +251,9 @@ After the files are written, the script opens `report.html` in your browser.
 
 ### Exclusion Behavior
 
-- A job can match target rules and still be excluded by `settings/exclusions.txt`.
-- Excluded jobs are flagged as excluded and never recommended for follow-up.
+- Every job description is compared against `settings/exclusions.txt`, regardless of its match score.
+- A job can match target rules and still be excluded.
+- Excluded jobs are flagged as excluded (with the matching rule shown) and never recommended for follow-up.
 - Exclusions are evaluated by attribute name and value with case-insensitive equals/contains matching.
 
 ## Supported Job Sites
@@ -224,7 +265,7 @@ After the files are written, the script opens `report.html` in your browser.
 | Greenhouse | Selenium — standard job board |
 | LinkedIn | Selenium — clicks each job card (login may be required for full details) |
 | Remotive | requests + BeautifulSoup (static HTML) |
-| TopResume (Careerio) | requests + BeautifulSoup with Selenium fallback for dynamic job-search pages |
+| TopResume (Careerio) | Selenium — activates the `Search` tab, clicks each job card (using the card's own link, not its `Apply` link), and reads details from the right-side description pane; stops and prompts for sign-in if redirected to the login page |
 
 ## Alternative AI Tools
 

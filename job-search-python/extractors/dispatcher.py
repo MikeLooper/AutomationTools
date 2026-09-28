@@ -9,6 +9,7 @@ from extractors.base import BaseExtractor
 from extractors.connectingcolorado import ConnectingColoradoExtractor
 from extractors.dice import DiceExtractor
 from extractors.greenhouse import GreenhouseExtractor
+from extractors.indeed import IndeedExtractor
 from extractors.linkedin import LinkedInExtractor
 from extractors.remotive import RemotiveExtractor
 from extractors.topresume import TopResumeExtractor
@@ -19,6 +20,7 @@ _DOMAIN_MAP: dict[str, type[BaseExtractor]] = {
     "connectingcolorado.gov":      ConnectingColoradoExtractor,
     "dice.com":        DiceExtractor,
     "greenhouse.io":   GreenhouseExtractor,
+    "indeed.com":      IndeedExtractor,
     "linkedin.com":    LinkedInExtractor,
     "remotive.com":    RemotiveExtractor,
     "careerio.topresume.com": TopResumeExtractor,

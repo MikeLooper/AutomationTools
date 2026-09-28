@@ -25,18 +25,21 @@ DEFAULT_LANGUAGE_ALIASES: list[tuple[str, str]] = [
 _LANGUAGE_ALIASES: list[tuple[str, str]] = DEFAULT_LANGUAGE_ALIASES.copy()
 _TOOL_ALIASES: list[tuple[str, str]] = []
 _JOB_TYPE_ALIASES: list[tuple[str, str]] = []
+_CONDITION_ALIASES: list[tuple[str, str]] = []
 
 
 def configure_extraction_aliases(
     language_aliases: list[tuple[str, str]] | None,
     tool_aliases: list[tuple[str, str]] | None,
     job_type_aliases: list[tuple[str, str]] | None = None,
+    condition_aliases: list[tuple[str, str]] | None = None,
 ) -> None:
     """Configure discovery/reporting aliases loaded from settings files."""
-    global _LANGUAGE_ALIASES, _TOOL_ALIASES, _JOB_TYPE_ALIASES
+    global _LANGUAGE_ALIASES, _TOOL_ALIASES, _JOB_TYPE_ALIASES, _CONDITION_ALIASES
     _LANGUAGE_ALIASES = language_aliases.copy() if language_aliases else DEFAULT_LANGUAGE_ALIASES.copy()
     _TOOL_ALIASES = tool_aliases.copy() if tool_aliases else []
     _JOB_TYPE_ALIASES = job_type_aliases.copy() if job_type_aliases else []
+    _CONDITION_ALIASES = condition_aliases.copy() if condition_aliases else []
 
 
 def _term_regex(term: str) -> str:
@@ -70,6 +73,10 @@ def extract_tools(text: str) -> str:
 
 def extract_job_type(text: str) -> str:
     return _extract_alias_values(text, _JOB_TYPE_ALIASES)
+
+
+def extract_conditions(text: str) -> str:
+    return _extract_alias_values(text, _CONDITION_ALIASES)
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +219,8 @@ def extract_attributes(text: str, attribute_names: list[str]) -> dict[str, str]:
             result[attr] = extract_programming_languages(text)
         elif "tool" in attr_lower:
             result[attr] = extract_tools(text)
+        elif "condition" in attr_lower:
+            result[attr] = extract_conditions(text)
         elif "type" in attr_lower:
             result[attr] = extract_job_type(text)
         elif "salary" in attr_lower or "range" in attr_lower:

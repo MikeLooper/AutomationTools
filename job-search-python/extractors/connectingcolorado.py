@@ -14,8 +14,6 @@ from extractors.base import BaseExtractor, extract_attributes
 
 
 class ConnectingColoradoExtractor(BaseExtractor):
-    HEADLESS = True
-
     CARD_SELECTORS = [
         ".job-card-external",
         ".job-card-content",

@@ -4,14 +4,17 @@ extractors/base.py — Base extractor class and shared attribute-extraction help
 
 import re
 import time
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+import requests
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -48,6 +51,7 @@ DEFAULT_LANGUAGE_ALIASES: list[tuple[str, str]] = [
 _LANGUAGE_ALIASES: list[tuple[str, str]] = DEFAULT_LANGUAGE_ALIASES.copy()
 _TOOL_ALIASES: list[tuple[str, str]] = []
 _JOB_TYPE_ALIASES: list[tuple[str, str]] = []
+_CONDITION_ALIASES: list[tuple[str, str]] = []
 
 # Common job-title patterns
 TITLE_PATTERNS = [
@@ -111,15 +115,18 @@ def configure_extraction_aliases(
     language_aliases: list[tuple[str, str]] | None,
     tool_aliases: list[tuple[str, str]] | None,
     job_type_aliases: list[tuple[str, str]] | None = None,
+    condition_aliases: list[tuple[str, str]] | None = None,
 ) -> None:
     """Configure discovery/reporting aliases loaded from settings files."""
     global _LANGUAGE_ALIASES
     global _TOOL_ALIASES
     global _JOB_TYPE_ALIASES
+    global _CONDITION_ALIASES
 
     _LANGUAGE_ALIASES = language_aliases.copy() if language_aliases else DEFAULT_LANGUAGE_ALIASES.copy()
     _TOOL_ALIASES = tool_aliases.copy() if tool_aliases else []
     _JOB_TYPE_ALIASES = job_type_aliases.copy() if job_type_aliases else []
+    _CONDITION_ALIASES = condition_aliases.copy() if condition_aliases else []
 
 
 def _term_regex(term: str) -> str:
@@ -158,6 +165,11 @@ def extract_tools(text: str) -> str:
 def extract_job_type(text: str) -> str:
     """Return a comma-separated list of configured job types (see settings/jobtypes.txt)."""
     return _extract_alias_values(text, _JOB_TYPE_ALIASES)
+
+
+def extract_conditions(text: str) -> str:
+    """Return a comma-separated list of configured conditions (see settings/conditions.txt)."""
+    return _extract_alias_values(text, _CONDITION_ALIASES)
 
 
 def extract_salary(text: str) -> str:
@@ -206,6 +218,8 @@ def extract_attributes(text: str, attribute_names: list[str]) -> dict[str, str]:
             result[attr] = extract_programming_languages(text)
         elif "tool" in attr_lower:
             result[attr] = extract_tools(text)
+        elif "condition" in attr_lower:
+            result[attr] = extract_conditions(text)
         elif "type" in attr_lower:
             result[attr] = extract_job_type(text)
         elif "salary" in attr_lower or "range" in attr_lower:
@@ -218,53 +232,144 @@ def extract_attributes(text: str, attribute_names: list[str]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Selenium helpers
 # ---------------------------------------------------------------------------
+#
+# Several sites (TopResume, LinkedIn, ...) require the user to be signed in.
+# A browser instance launched and owned by this app has no way to present a
+# sign-in form to the user, so instead we attach to a Chrome instance the
+# user starts themselves ahead of time, with a persistent profile that keeps
+# them signed in across runs:
+#
+#   "C:\Program Files\Google\Chrome\Application\chrome.exe" ^
+#       --remote-debugging-port=9222 ^
+#       --user-data-dir="C:\Users\%USERNAME%\ChromeAutomationProfile"
 
-def build_driver(headless: bool = True) -> webdriver.Chrome:
-    """Create and return a Chrome WebDriver instance."""
-    options = Options()
-    if headless:
-        options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--remote-debugging-port=0")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-popup-blocking")
-    options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option("useAutomationExtension", False)
-    options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
+DEBUG_BROWSER_ADDRESS = "127.0.0.1:9222"
+DEBUG_BROWSER_LAUNCH_COMMAND = (
+    r'"C:\Program Files\Google\Chrome\Application\chrome.exe" '
+    r'--remote-debugging-port=9222 '
+    r'--user-data-dir="C:\Users\%USERNAME%\ChromeAutomationProfile"'
+)
+
+
+def is_debug_browser_running(debugger_address: str = DEBUG_BROWSER_ADDRESS) -> bool:
+    """Return True when a Chrome instance is listening at `debugger_address`."""
+    try:
+        resp = requests.get(f"http://{debugger_address}/json/version", timeout=3)
+        return resp.ok
+    except requests.RequestException:
+        return False
+
+
+def _ensure_open_page(debugger_address: str) -> None:
+    """Chromedriver needs at least one open tab to attach to; open one if none exist."""
+    try:
+        resp = requests.get(f"http://{debugger_address}/json", timeout=3)
+        resp.raise_for_status()
+        pages = resp.json()
+    except requests.RequestException:
+        return
+
+    if pages:
+        return
+
+    for method in (requests.put, requests.get):
+        try:
+            method(f"http://{debugger_address}/json/new", timeout=3).raise_for_status()
+            return
+        except requests.RequestException:
+            continue
+
+
+# ---------------------------------------------------------------------------
+# Human-verification ("Press & Hold" / Cloudflare checkbox) handling
+# ---------------------------------------------------------------------------
+#
+# Some sites (Indeed included) occasionally interrupt automated browsing with
+# a "Verifying you are human" interstitial that requires a person to click a
+# checkbox. Since this app attaches to a browser window the user can see,
+# the extractor pauses and waits for the person to clear it, then resumes.
+
+HUMAN_VERIFICATION_PHRASES = [
+    "verify you are human",
+    "verifying you are human",
+    "additional verification required",
+    "please verify you are a human",
+    "checking your browser",
+    "press and hold",
+]
+
+HUMAN_VERIFICATION_IFRAME_SELECTOR = (
+    "iframe[src*='challenges.cloudflare.com'], "
+    "iframe[title*='challenge'], "
+    "iframe[title*='Cloudflare']"
+)
+
+
+def is_human_verification_present(driver: webdriver.Chrome) -> bool:
+    """Return True when the current page looks like a human-verification interstitial."""
+    try:
+        title = (driver.title or "").lower()
+    except Exception:
+        title = ""
+    if "just a moment" in title or "verifying" in title:
+        return True
+
+    try:
+        body_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+    except Exception:
+        body_text = ""
+    if any(phrase in body_text for phrase in HUMAN_VERIFICATION_PHRASES):
+        return True
+
+    try:
+        if driver.find_elements(By.CSS_SELECTOR, HUMAN_VERIFICATION_IFRAME_SELECTOR):
+            return True
+    except Exception:
+        pass
+
+    return False
+
+
+def wait_for_human_verification(
+    driver: webdriver.Chrome,
+    poll_interval: float = 2.0,
+    timeout: float = 600.0,
+) -> None:
+    """If a human-verification interstitial is showing, pause until a person clears it."""
+    if not is_human_verification_present(driver):
+        return
+
+    print(
+        "  !! Human verification detected — switch to the browser window and "
+        "click the verification checkbox. Waiting for it to clear..."
     )
-    chrome_binary_candidates = [
-        Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
-        Path(r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"),
-        Path(r"C:\Program Files\Chromium\Application\chrome.exe"),
-        Path(r"C:\Program Files (x86)\Chromium\Application\chrome.exe"),
-        Path.home() / r"AppData\Local\Google\Chrome\Application\chrome.exe",
-    ]
-    for candidate in chrome_binary_candidates:
-        if candidate.exists():
-            options.binary_location = str(candidate)
-            break
+    waited = 0.0
+    while is_human_verification_present(driver) and waited < timeout:
+        time.sleep(poll_interval)
+        waited += poll_interval
+
+    if is_human_verification_present(driver):
+        print("  !! Timed out waiting for human verification to clear.")
+    else:
+        print("  Human verification cleared — resuming.")
+
+
+def build_driver(debugger_address: str = DEBUG_BROWSER_ADDRESS) -> webdriver.Chrome:
+    """Attach to the user-launched debug Chrome instance (see module notes above)."""
+    _ensure_open_page(debugger_address)
+
+    options = Options()
+    options.debugger_address = debugger_address
 
     service = Service(ChromeDriverManager().install())
     try:
         driver = webdriver.Chrome(service=service, options=options)
     except WebDriverException as exc:
         raise RuntimeError(
-            "Unable to start Chrome for Selenium. Ensure Google Chrome or Chromium is "
-            "installed and matches the ChromeDriver version."
+            f"Unable to attach to the debug Chrome browser at {debugger_address}: {exc}\n"
+            f"Make sure it is running with:\n  {DEBUG_BROWSER_LAUNCH_COMMAND}\nand try again."
         ) from exc
 
-    driver.execute_cdp_cmd(
-        "Page.addScriptToEvaluateOnNewDocument",
-        {"source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"},
-    )
     return driver
 
 
@@ -275,9 +380,6 @@ def build_driver(headless: bool = True) -> webdriver.Chrome:
 class BaseExtractor(ABC):
     """All site-specific extractors inherit from this."""
 
-    # Override in subclass to run headful (visible) browser, e.g. for login walls
-    HEADLESS: bool = True
-
     def extract(self, url: str, attributes: list[str]) -> list[dict[str, Any]]:
         """
         Open `url`, enumerate all job listings, and return a list of dicts:
@@ -286,10 +388,12 @@ class BaseExtractor(ABC):
                 "attributes": {attr_name: value, ...},
             }
         """
-        driver = build_driver(headless=self.HEADLESS)
+        driver = build_driver()
         try:
             return self._extract(driver, url, attributes)
         finally:
+            # driver.quit() only ends this attached session/local chromedriver
+            # helper process — it does not close the user's debug browser.
             driver.quit()
 
     @abstractmethod
@@ -310,3 +414,7 @@ class BaseExtractor(ABC):
     @staticmethod
     def sleep(seconds: float) -> None:
         time.sleep(seconds)
+
+    @staticmethod
+    def wait_for_human_verification(driver: webdriver.Chrome) -> None:
+        wait_for_human_verification(driver)

@@ -1,0 +1,12 @@
+# Conditions values — one per line.
+# Supported formats:
+#   Condition           (exact match, case-insensitive)
+#   Condition:Common Name  (two parts; separated by a colon.  Match using the left part, and substitute the right part during subsiquent processing)
+
+ability to obtain a Secret clearance:Security Clearance
+clearance is required:Security Clearance
+Clearance Level:Security Clearance
+Minimum Clearance Required:Security Clearance
+Security Clearance
+Secret clearance:Security Clearance
+Top Secret clearance:Security Clearance

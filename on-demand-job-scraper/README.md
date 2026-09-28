@@ -26,15 +26,15 @@ session instead of an anonymous request.
      visible (many boards embed a `schema.org JobPosting` JSON-LD block for
      SEO even on pages that require login to browse).
 3. **Determine the site and extract.** The page's hostname is checked
-   against a small set of predefined sites (Dice, Greenhouse, LinkedIn,
-   Remotive, Connecting Colorado, TopResume). A recognized site uses its
+   against a small set of predefined sites (Dice, Greenhouse, Indeed,
+   LinkedIn, Remotive, Connecting Colorado, TopResume). A recognized site uses its
    dedicated extractor (schema.org JSON-LD first, then site-specific CSS
    selectors, then shared text heuristics). An unrecognized site falls back
    to `extractors/generic.py`, which applies the same JSON-LD + heuristic
    approach without any site-specific selectors.
 4. **Print a summary**, or **write a report**: a single job-view page prints
-   Job Title, Company, Location, Job Type, Programming Language, Tools, and
-   Salary Range to the console. A LinkedIn search-results page with a list of
+   Job Title, Company, Location, Job Type, Programming Language, Tools,
+   Condition, and Salary Range to the console. A LinkedIn search-results page with a list of
    cards instead clicks through every card (needs the authenticated read —
    see below, since that's real DOM interaction, not just a fetch), scrapes
    the preview pane after each click, and writes an HTML+JSON report to
@@ -107,6 +107,7 @@ python job_scraper.py --url "https://remotive.com/remote-jobs/software-dev/examp
 | `--programminglanguages` | Path to programming-language aliases. Defaults to `settings/programminglanguages.txt`. |
 | `--tools` | Path to tool aliases. Defaults to `settings/tools.txt`. |
 | `--jobtypes` | Path to job-type aliases. Defaults to `settings/jobtypes.txt`. |
+| `--conditions` | Path to condition aliases. Defaults to `settings/conditions.txt`. |
 | `--debug-port` | Remote-debugging port of your dedicated browser profile, if not the default `9222`. |
 
 ## Settings files
@@ -114,16 +115,24 @@ python job_scraper.py --url "https://remotive.com/remote-jobs/software-dev/examp
 Same format as `job-search-python`:
 
 - `settings/attributes.txt` — one attribute name per line.
-- `settings/programminglanguages.txt` / `settings/tools.txt` / `settings/jobtypes.txt` —
-  one alias per line; `discovery:reporting` if the matched term should be reported under a
-  different name (e.g. `Amazon Web Services:AWS`).
+- `settings/programminglanguages.txt` / `settings/tools.txt` / `settings/jobtypes.txt` /
+  `settings/conditions.txt` — one alias per line; `discovery:reporting` if the matched term
+  should be reported under a different name (e.g. `Amazon Web Services:AWS`,
+  `clearance is required:Security Clearance`). A line without a colon matches itself
+  exactly (case-insensitive). `conditions.txt` feeds the `Condition` attribute (must be
+  present in `attributes.txt`, as it is by default) and is meant to be referenced from
+  `exclusions.txt` (see below) to exclude jobs on a condition found in the description,
+  e.g. a security-clearance requirement.
 - `settings/targets.txt` / `settings/exclusions.txt` — only used by the
   LinkedIn list-scrape report, for scoring/filtering jobs (`AttributeName=Value`,
   `AttributeName=Value1 OR Value2`, `Salary Range Includes 200K`). `targets.txt`
   additionally supports `Salary Range Is Greater Than <amount>`, `Salary Range
   Is Less Than <amount>`, and `Salary Range Equals <amount>`, and any of the
   four Salary Range comparisons can be OR'd together on one line (e.g.
-  `Salary Range Includes 150K OR Is Greater Than 200K`). Empty by
+  `Salary Range Includes 150K OR Is Greater Than 200K`). `exclusions.txt` also
+  accepts `Condition=<reported name>` (e.g. `Condition=Security Clearance`) to
+  exclude any job whose `Condition` attribute picked up that value via
+  `conditions.txt`. Empty by
   default, which scores every job 100% / recommended — add rules here the
   same way you would in `job-search-python` if you want to filter the report
   down. `--match-pct` (default `75`) sets the recommendation threshold.
@@ -134,6 +143,7 @@ Same format as `job-search-python`:
 |---|---|
 | Dice | Parses the embedded Next.js `__NEXT_DATA__` payload when present. |
 | Greenhouse | Reads schema.org JobPosting JSON-LD when the board provides it. |
+| Indeed | Works on both a direct job-view page and a search-results page (including the indeed.com home feed). On a results page with the live-browser read available, every result card on the left is clicked in turn and the job details it loads on the right are scraped, with the card's own summary (company, location, salary, job type) filling any gaps; a card whose details never load is still reported from the card alone. Indeed returns a 403 to a plain HTTP request even for public postings, so this one needs the authenticated/live-browser read (see above) in practice. |
 | LinkedIn | Works on both a direct job-view page and a search-results page with a job open in the preview pane. LinkedIn's CSS classes are hashed/build-generated and not stable, so this reads the `<title>` tag (`"{Job Title} \| {Company} \| LinkedIn"`), an `aria-label="Company, {Name}."` near the logo, and the "About the job" section text instead of any selector. |
 | Remotive | — |
 | Connecting Colorado | Needs the authenticated read (see above) for most postings. |

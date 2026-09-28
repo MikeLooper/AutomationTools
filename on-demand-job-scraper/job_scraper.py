@@ -5,10 +5,10 @@ Reads the URL currently open in the user's system browser, scrapes it with a
 predefined extractor when the site is recognized (falling back to a generic
 heuristic extractor otherwise).
 
-For a LinkedIn search-results page with a card list, this clicks through
-every card (via the live-browser-attach session — see README) and writes an
-HTML/JSON report of all of them, matching job-search-python's report layout.
-Anything else prints a single-job summary to the console.
+For a LinkedIn or Indeed search-results page with a card list, this clicks
+through every card (via the live-browser-attach session — see README) and
+writes an HTML/JSON report of all of them, matching job-search-python's
+report layout. Anything else prints a single-job summary to the console.
 
 Usage:
     python job_scraper.py
@@ -23,10 +23,11 @@ from datetime import datetime
 from pathlib import Path
 
 from browser_reader import BrowserNotFoundError, get_active_browser_url
+from extractors import indeed as indeed_module
 from extractors import linkedin as linkedin_module
 from extractors.base import configure_extraction_aliases
 from extractors.dispatcher import get_extractor
-from list_scraper import scrape_all_cards
+from list_scraper import scrape_all_cards, scrape_all_indeed_cards
 from matcher import apply_exclusions, compute_match, parse_exclusion_rules
 from page_fetcher import fetch, find_debug_port, open_in_browser
 from reporter import generate_report
@@ -38,6 +39,7 @@ DEFAULT_ATTRIBUTES_PATH = SETTINGS_DIR / "attributes.txt"
 DEFAULT_PROGRAMMING_LANGUAGES_PATH = SETTINGS_DIR / "programminglanguages.txt"
 DEFAULT_TOOLS_PATH = SETTINGS_DIR / "tools.txt"
 DEFAULT_JOB_TYPES_PATH = SETTINGS_DIR / "jobtypes.txt"
+DEFAULT_CONDITIONS_PATH = SETTINGS_DIR / "conditions.txt"
 DEFAULT_TARGETS_PATH = SETTINGS_DIR / "targets.txt"
 DEFAULT_EXCLUSIONS_PATH = SETTINGS_DIR / "exclusions.txt"
 DEFAULT_MATCH_PCT = 75
@@ -91,10 +93,7 @@ def write_list_report(url: str, jobs: list[dict], match_pct: int, targets_path: 
     for job in jobs:
         score, details = compute_match(job["attributes"], targets)
         preliminary_recommended = score >= match_pct
-        if preliminary_recommended:
-            excluded, exclusion_details = apply_exclusions(job["attributes"], exclusion_rules)
-        else:
-            excluded, exclusion_details = False, []
+        excluded, exclusion_details = apply_exclusions(job["attributes"], exclusion_rules)
         job["match_score"] = score
         job["match_details"] = details
         job["excluded"] = excluded
@@ -133,6 +132,7 @@ def main() -> None:
     parser.add_argument("--programminglanguages", default=str(DEFAULT_PROGRAMMING_LANGUAGES_PATH))
     parser.add_argument("--tools", default=str(DEFAULT_TOOLS_PATH))
     parser.add_argument("--jobtypes", default=str(DEFAULT_JOB_TYPES_PATH))
+    parser.add_argument("--conditions", default=str(DEFAULT_CONDITIONS_PATH))
     parser.add_argument("--targets", default=str(DEFAULT_TARGETS_PATH))
     parser.add_argument("--exclusions", default=str(DEFAULT_EXCLUSIONS_PATH))
     parser.add_argument("--match-pct", type=int, default=DEFAULT_MATCH_PCT)
@@ -147,6 +147,7 @@ def main() -> None:
         load_alias_lines(args.programminglanguages),
         load_alias_lines(args.tools),
         load_alias_lines(args.jobtypes),
+        load_alias_lines(args.conditions),
     )
 
     window_title = ""
@@ -164,35 +165,39 @@ def main() -> None:
     if not is_known_site:
         print(f"  Site not pre-programmed for {url} - using generic extraction.")
 
-    # A card-list page (currently: LinkedIn search results) needs real clicks
+    # A card-list page (LinkedIn or Indeed search results) needs real clicks
     # to see each job, which only the live-browser-attach session can do.
-    # Gated on the target URL actually being a LinkedIn one — otherwise
-    # scrape_all_cards would happily click through whatever LinkedIn tab is
+    # Gated on the target URL actually being one of those sites — otherwise
+    # the list scraper would happily click through whatever matching tab is
     # open in the attached browser even when a different site/URL was asked
-    # for, since it only checks the live browser's own tabs, not `url`.
+    # for. (The Indeed scraper also prefers the tab showing `url` itself.)
     jobs = None
-    if module is linkedin_module:
+    if module in (linkedin_module, indeed_module):
         port = find_debug_port(extra_ports=[args.debug_port] if args.debug_port else None)
         if port is not None:
-            jobs = scrape_all_cards(port, module, attributes)
+            if module is linkedin_module:
+                jobs = scrape_all_cards(port, module, attributes)
+            else:
+                jobs = scrape_all_indeed_cards(port, module, attributes, url)
 
-    if jobs:
-        html_path = write_list_report(url, jobs, args.match_pct, args.targets, args.exclusions)
-        if not open_in_browser(port, html_path):
-            os.startfile(str(html_path))
-        print(f"\nReport written to: {html_path.parent}")
-        print(f"  HTML: {html_path.name}")
-        print(f"  JSON: {(html_path.parent / 'report.json').name}")
-        return
+    if not jobs:
+        try:
+            fetch_result = fetch(url, debug_port=args.debug_port)
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
 
-    try:
-        fetch_result = fetch(url, debug_port=args.debug_port)
-    except RuntimeError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        sys.exit(1)
+        result = module.parse(url, fetch_result.html, attributes)
+        print_summary(result, window_title, fetch_result.method, fetch_result.warning)
+        jobs = [result]
+        port = find_debug_port(extra_ports=[args.debug_port] if args.debug_port else None)
 
-    result = module.parse(url, fetch_result.html, attributes)
-    print_summary(result, window_title, fetch_result.method, fetch_result.warning)
+    html_path = write_list_report(url, jobs, args.match_pct, args.targets, args.exclusions)
+    if port is None or not open_in_browser(port, html_path):
+        os.startfile(str(html_path))
+    print(f"\nReport written to: {html_path.parent}")
+    print(f"  HTML: {html_path.name}")
+    print(f"  JSON: {(html_path.parent / 'report.json').name}")
 
 
 if __name__ == "__main__":

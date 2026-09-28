@@ -6,4 +6,5 @@ Company
 Location
 Programming Language
 Tools
+Condition
 Salary Range

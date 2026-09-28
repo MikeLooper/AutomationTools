@@ -24,8 +24,6 @@ HEADERS = {
 
 
 class DiceExtractor(BaseExtractor):
-    HEADLESS = True
-
     @staticmethod
     def _collect_text(value: Any) -> list[str]:
         """Flatten nested payload data into searchable text fragments."""
@@ -100,7 +98,8 @@ class DiceExtractor(BaseExtractor):
             # If aliases aren't present in search-result payload fields, fetch detail page text.
             needs_language = "Programming Language" in attrs and not attrs["Programming Language"]
             needs_tools = "Tools" in attrs and not attrs["Tools"]
-            if needs_language or needs_tools:
+            needs_condition = "Condition" in attrs and not attrs["Condition"]
+            if needs_language or needs_tools or needs_condition:
                 job_url = item.get("detailsPageUrl", "")
                 if job_url:
                     try:
@@ -112,6 +111,8 @@ class DiceExtractor(BaseExtractor):
                             attrs["Programming Language"] = page_attrs["Programming Language"]
                         if needs_tools and page_attrs.get("Tools"):
                             attrs["Tools"] = page_attrs["Tools"]
+                        if needs_condition and page_attrs.get("Condition"):
+                            attrs["Condition"] = page_attrs["Condition"]
                     except Exception:
                         pass
 

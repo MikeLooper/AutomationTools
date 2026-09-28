@@ -11,5 +11,6 @@
 # recommended, so a full run of the list scraper just gives you every job's
 # details without needing any configuration first.
 
+Job Title=Solutions Architect OR Software Engineering Manager OR Software Engineer OR Tech Lead
 Programming Language=C# OR .NET
-Salary Range Includes 200K OR Is Greater Than 200K
+Salary Range Includes 190K OR Is Greater Than 190K
